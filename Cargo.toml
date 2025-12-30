@@ -1,0 +1,143 @@
+[package]
+name = "xeno-lib"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+image = { version = "0.25", default-features = true }
+nom-exif = "2.5"
+rayon = "1.10"
+thiserror = "1.0"
+fast_image_resize = { version = "5.3", optional = true }
+
+# Background removal dependencies
+ort = { version = "2.0.0-rc.10", optional = true }
+ndarray = { version = "0.16", optional = true }
+
+# Video encoding (Phase 2)
+# Note: "asm" feature requires NASM. Disable for pure Rust fallback.
+rav1e = { version = "0.7", optional = true }
+mp4 = { version = "0.14", optional = true }
+
+# H.264 encoding via OpenH264 (Cisco's open-source H.264 codec)
+# The "source" feature bundles the C source and compiles via cc
+# Performance: ~3x faster with NASM in PATH
+openh264 = { version = "0.9", optional = true, default-features = false, features = ["source"] }
+
+# Video decoding - GPU accelerated (NVDEC)
+# Using libloading for dynamic loading to avoid CUDA version constraints
+libloading = { version = "0.8", optional = true }
+
+# Software video decoding
+# Note: Requires system dav1d library on Windows (vcpkg or manual build)
+# On Linux: apt install libdav1d-dev
+# The dav1d crate provides safe Rust bindings
+dav1d = { version = "0.10", optional = true }  # AV1 software decoder
+
+# Audio decoding - Pure Rust via Symphonia
+# Supports: MP3, AAC, FLAC, Vorbis, ALAC, WAV, AIFF, MKV, MP4, OGG, WebM
+symphonia = { version = "0.5", optional = true, features = ["all"] }
+rubato = { version = "0.15", optional = true }  # Audio resampling
+
+# Audio encoding - Pure Rust
+hound = { version = "3.5", optional = true }     # WAV encoding (pure Rust)
+flacenc = { version = "0.5", optional = true }   # FLAC encoding (pure Rust)
+audiopus = { version = "0.2", optional = true }   # Opus encoding (libopus bindings)
+
+# MP4 muxing support
+bytes = { version = "1.5", optional = true }     # For MP4 sample data
+
+# Container demuxing
+matroska = { version = "0.29", optional = true }  # MKV/WebM demuxing
+
+# Text overlay / font rendering (pure Rust)
+ab_glyph = { version = "0.2", optional = true }   # Font loading and glyph rasterization
+
+[features]
+default = []
+fast-resize = ["fast_image_resize"]
+background-removal = ["ort", "ndarray"]
+background-removal-cuda = ["background-removal", "ort?/cuda"]
+
+# Video features (Phase 2)
+video = []
+video-encode = ["video", "rav1e", "mp4"]
+video-encode-h264 = ["video", "openh264", "mp4"]  # H.264 encoding via OpenH264
+video-encode-full = ["video-encode", "video-encode-h264"]  # All encoders
+video-decode = ["video", "libloading"]
+video-decode-sw = ["video", "dav1d"]  # Software AV1 decoder (CPU)
+video-full = ["video-encode-full", "video-decode", "video-decode-sw"]
+
+# Audio features (Phase 2)
+audio = ["symphonia"]
+audio-resample = ["audio", "rubato"]
+audio-encode = ["hound"]                          # WAV encoding
+audio-encode-flac = ["audio-encode", "flacenc"]   # FLAC encoding (pure Rust)
+audio-encode-opus = ["audiopus"]                  # Opus encoding (requires libopus)
+audio-full = ["audio", "audio-resample", "audio-encode-flac", "audio-encode-opus"]
+
+# A/V muxing features
+av-mux = ["mp4", "bytes"]                         # Audio+Video muxing to MP4
+
+# Container features
+containers = ["matroska", "mp4"]
+
+# Text overlay feature
+text-overlay = ["ab_glyph"]
+
+# AI Upscaling (Real-ESRGAN)
+upscale = ["ort", "ndarray"]                      # AI upscaling (CPU)
+upscale-cuda = ["upscale", "ort?/cuda"]           # AI upscaling (GPU accelerated)
+
+# AI Face Restoration (GFPGAN/CodeFormer)
+face-restore = ["ort", "ndarray"]                 # AI face restoration (CPU)
+face-restore-cuda = ["face-restore", "ort?/cuda"] # AI face restoration (GPU)
+
+# AI Frame Interpolation (RIFE)
+frame-interpolate = ["ort", "ndarray"]            # AI frame interpolation (CPU)
+frame-interpolate-cuda = ["frame-interpolate", "ort?/cuda"]
+
+# AI Colorization (DDColor)
+colorize = ["ort", "ndarray"]                     # AI colorization (CPU)
+colorize-cuda = ["colorize", "ort?/cuda"]         # AI colorization (GPU)
+
+# AI Object Removal/Inpainting (LaMa)
+inpaint = ["ort", "ndarray"]                      # AI inpainting (CPU)
+inpaint-cuda = ["inpaint", "ort?/cuda"]           # AI inpainting (GPU)
+
+# AI Face Detection (SCRFD)
+face-detect = ["ort", "ndarray"]                  # AI face detection (CPU)
+face-detect-cuda = ["face-detect", "ort?/cuda"]   # AI face detection (GPU)
+
+# AI Depth Estimation (MiDaS/Depth Anything)
+depth = ["ort", "ndarray"]                        # AI depth estimation (CPU)
+depth-cuda = ["depth", "ort?/cuda"]               # AI depth estimation (GPU)
+
+# AI Speech-to-Text (Whisper)
+transcribe = ["ort", "ndarray"]                   # AI transcription (CPU)
+transcribe-cuda = ["transcribe", "ort?/cuda"]     # AI transcription (GPU)
+
+# AI Audio Separation (Demucs)
+audio-separate = ["ort", "ndarray"]               # AI audio separation (CPU)
+audio-separate-cuda = ["audio-separate", "ort?/cuda"]
+
+# Full multimedia (everything)
+multimedia = ["video-full", "audio-full", "containers", "text-overlay"]
+
+# AI features bundle
+ai = ["background-removal", "upscale", "face-restore", "colorize", "inpaint", "face-detect", "depth"]
+ai-cuda = ["background-removal-cuda", "upscale-cuda", "face-restore-cuda", "colorize-cuda", "inpaint-cuda", "face-detect-cuda", "depth-cuda"]
+ai-video = ["frame-interpolate", "transcribe", "audio-separate"]  # Video/audio AI features
+ai-video-cuda = ["frame-interpolate-cuda", "transcribe-cuda", "audio-separate-cuda"]
+ai-full = ["ai", "ai-video"]                      # All AI features
+ai-full-cuda = ["ai-cuda", "ai-video-cuda"]       # All AI features with CUDA
+
+[dev-dependencies]
+chrono = "0.4"
+criterion = { version = "0.5", features = ["html_reports"] }
+pretty_assertions = "1.4"
+tempfile = "3.10"
+
+[[bench]]
+name = "transforms"
+harness = false

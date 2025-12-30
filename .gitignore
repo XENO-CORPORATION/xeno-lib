@@ -1,0 +1,61 @@
+# Build artifacts
+/target
+**/target/
+
+# Claude Code local settings
+.claude/
+
+# Cargo lock is usually committed for binaries, optional for libraries
+# Cargo.lock
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Debug files
+*.pdb
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test artifacts
+*.log
+test_output/
+test_*.wav
+test_*.mp3
+test_*.mp4
+test_*.png
+test_*.jpg
+
+# ONNX models (large files - download separately)
+*.onnx
+
+# Temporary files
+*.tmp
+*.temp
+.env
+.env.local
+post.txt
+check_simd.exe
+check_simd.pdb
+
+# Coverage reports
+*.profraw
+coverage/
+lcov.info
+
+# Documentation build
+/doc/
+
+# OS-specific
+Thumbs.db
+.Spotlight-V100
+.Trashes
+
+# Benchmark results (optional)
+# criterion/
