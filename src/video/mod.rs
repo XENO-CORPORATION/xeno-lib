@@ -63,6 +63,10 @@ pub mod decode;
 #[cfg(feature = "av-mux")]
 pub mod mux;
 
+// Video editing operations (Phase 3 - trim, cut, concat, speed change)
+#[cfg(feature = "video")]
+pub mod edit;
+
 pub use error::{VideoError, VideoResult};
 pub use frame::VideoFrame;
 pub use metadata::{AudioCodec, ContainerFormat, VideoCodec, VideoMetadata};

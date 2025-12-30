@@ -134,4 +134,19 @@ pub enum TransformError {
     #[cfg(feature = "text-overlay")]
     #[error("invalid text configuration: {message}")]
     InvalidTextConfig { message: String },
+
+    /// Parsing failed for a text-based format.
+    #[cfg(feature = "subtitle")]
+    #[error("failed to parse: {message}")]
+    ParseFailed { message: String },
+
+    /// Failed to read a file.
+    #[cfg(feature = "subtitle")]
+    #[error("failed to read file: {message}")]
+    FileReadFailed { message: String },
+
+    /// Failed to write a file.
+    #[cfg(feature = "subtitle")]
+    #[error("failed to write file: {message}")]
+    FileWriteFailed { message: String },
 }

@@ -111,3 +111,11 @@ pub use encode::{encode_flac, encode_flac_to_bytes, FlacConfig};
 
 #[cfg(feature = "audio-encode-opus")]
 pub use encode::{encode_opus, OpusApplication, OpusEncoder, OpusEncoderConfig, OpusError, OpusResult};
+
+// Audio effects module (Phase 3 - Reverb, EQ, Pitch, etc.)
+#[cfg(feature = "audio")]
+pub mod effects;
+
+// Audio visualization module (Phase 3 - Waveform, Spectrum, Spectrogram)
+#[cfg(feature = "audio")]
+pub mod visualization;
