@@ -1,7 +1,7 @@
 [package]
 name = "xeno-lib"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
 image = { version = "0.25", default-features = true }
@@ -121,16 +121,59 @@ transcribe-cuda = ["transcribe", "ort?/cuda"]     # AI transcription (GPU)
 audio-separate = ["ort", "ndarray"]               # AI audio separation (CPU)
 audio-separate-cuda = ["audio-separate", "ort?/cuda"]
 
-# Full multimedia (everything)
-multimedia = ["video-full", "audio-full", "containers", "text-overlay"]
+# NEW FEATURES (Phase 3)
 
-# AI features bundle
+# Subtitle support (SRT, VTT, ASS parsing and burn-in)
+subtitle = []                                      # Subtitle parsing and rendering
+
+# AI Style Transfer (Neural Style Transfer)
+style-transfer = ["ort", "ndarray"]               # AI style transfer (CPU)
+style-transfer-cuda = ["style-transfer", "ort?/cuda"]
+
+# AI OCR (Text Recognition)
+ocr = ["ort", "ndarray"]                          # AI OCR (CPU)
+ocr-cuda = ["ocr", "ort?/cuda"]                   # AI OCR (GPU)
+
+# AI Pose Estimation (MoveNet/MediaPipe)
+pose = ["ort", "ndarray"]                         # AI pose estimation (CPU)
+pose-cuda = ["pose", "ort?/cuda"]                 # AI pose estimation (GPU)
+
+# AI Face Analysis (Age/Gender/Emotion)
+face-analysis = ["ort", "ndarray"]                # AI face analysis (CPU)
+face-analysis-cuda = ["face-analysis", "ort?/cuda"]
+
+# QR Code & Barcode generation/decoding (pure Rust)
+qrcode = []                                        # QR code support
+
+# Image Quality Assessment (pure Rust)
+quality = []                                       # Image quality analysis
+
+# Document Processing (deskew, binarization, etc.)
+document = []                                      # Document processing
+
+# Full multimedia (everything)
+multimedia = ["video-full", "audio-full", "containers", "text-overlay", "subtitle"]
+
+# AI features bundle (original)
 ai = ["background-removal", "upscale", "face-restore", "colorize", "inpaint", "face-detect", "depth"]
 ai-cuda = ["background-removal-cuda", "upscale-cuda", "face-restore-cuda", "colorize-cuda", "inpaint-cuda", "face-detect-cuda", "depth-cuda"]
 ai-video = ["frame-interpolate", "transcribe", "audio-separate"]  # Video/audio AI features
 ai-video-cuda = ["frame-interpolate-cuda", "transcribe-cuda", "audio-separate-cuda"]
-ai-full = ["ai", "ai-video"]                      # All AI features
-ai-full-cuda = ["ai-cuda", "ai-video-cuda"]       # All AI features with CUDA
+
+# New AI features bundle (Phase 3)
+ai-vision = ["style-transfer", "ocr", "pose", "face-analysis"]
+ai-vision-cuda = ["style-transfer-cuda", "ocr-cuda", "pose-cuda", "face-analysis-cuda"]
+
+# All AI features combined
+ai-full = ["ai", "ai-video", "ai-vision"]         # All AI features
+ai-full-cuda = ["ai-cuda", "ai-video-cuda", "ai-vision-cuda"]
+
+# Pro utilities (pure Rust, no AI)
+pro-utils = ["qrcode", "quality", "document"]
+
+# Everything bundle
+full = ["multimedia", "ai-full", "pro-utils"]
+full-cuda = ["multimedia", "ai-full-cuda", "pro-utils"]
 
 [dev-dependencies]
 chrono = "0.4"

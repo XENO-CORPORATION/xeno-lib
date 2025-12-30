@@ -211,3 +211,100 @@ pub use crate::audio_separate::{
     isolate_vocals, remove_vocals, separate, separate_quick, load_separator,
     AudioStem, SeparatedAudio, SeparationConfig, SeparationModel, SeparatorSession, StereoAudio,
 };
+
+// New Feature Modules
+
+#[cfg(feature = "subtitle")]
+pub mod subtitle;
+
+#[cfg(feature = "style-transfer")]
+pub mod style_transfer;
+
+#[cfg(feature = "ocr")]
+pub mod ocr;
+
+#[cfg(feature = "pose")]
+pub mod pose;
+
+#[cfg(feature = "face-analysis")]
+pub mod face_analysis;
+
+#[cfg(feature = "qrcode")]
+pub mod qrcode;
+
+#[cfg(feature = "quality")]
+pub mod quality;
+
+#[cfg(feature = "document")]
+pub mod document;
+
+// New Feature Exports
+
+#[cfg(feature = "subtitle")]
+pub use crate::subtitle::{
+    Subtitles, SubtitleCue, SubtitleFormat, SubtitleStyle, SubtitlePosition,
+    parse_srt, parse_vtt, parse_ass, render_subtitle, render_cue,
+};
+
+#[cfg(feature = "style-transfer")]
+pub use crate::style_transfer::{
+    stylize, stylize_blended, load_style_model,
+    PretrainedStyle, StyleConfig, StyleSession,
+};
+
+#[cfg(feature = "ocr")]
+pub use crate::ocr::{
+    extract_text, extract_text_quick, load_ocr_model, visualize_ocr,
+    OcrConfig, OcrModel, OcrResult, OcrSession, TextBlock, TextBox,
+};
+
+#[cfg(feature = "pose")]
+pub use crate::pose::{
+    detect_pose, detect_poses, load_pose_model, visualize_pose,
+    BodyKeypoint, DetectedPose, PoseConfig, PoseModel, PoseSession,
+};
+
+#[cfg(feature = "face-analysis")]
+pub use crate::face_analysis::{
+    analyze_face, analyze_faces, load_analyzer, visualize_analysis,
+    Emotion, FaceAnalysisConfig, FaceAnalysisResult, FaceAnalyzerSession, Gender,
+};
+
+#[cfg(feature = "qrcode")]
+pub use crate::qrcode::{
+    decode_qr, generate_qr, generate_barcode,
+    BarcodeFormat, DecodeResult, ErrorCorrection, QrConfig, QrError,
+};
+
+#[cfg(feature = "quality")]
+pub use crate::quality::{
+    assess_quality, find_best_image, is_acceptable_quality, rank_images,
+    QualityConfig, QualityGrade, QualityIssue, QualityMetrics, QualityReport,
+};
+
+#[cfg(feature = "document")]
+pub use crate::document::{
+    deskew, detect_skew, process_document, quick_deskew, scan_enhance,
+    DocumentConfig, DocumentResult, ProcessingStats,
+};
+
+#[cfg(feature = "audio")]
+pub use crate::audio::{
+    // Audio effects
+    effects::{
+        reverb, equalizer, pitch_shift, delay, distortion, chorus, flanger, noise_gate,
+        ReverbConfig, EqConfig, EqBand, FilterType, PitchShiftConfig, DelayConfig,
+        DistortionConfig, ChorusConfig, FlangerConfig, GateConfig, ReverbPreset,
+    },
+    // Audio visualization
+    visualization::{
+        render_waveform, render_spectrum, render_spectrogram,
+        WaveformConfig, SpectrumConfig, ColorMap,
+    },
+};
+
+#[cfg(feature = "video")]
+pub use crate::video::edit::{
+    trim_video, cut_video, concat_videos, change_speed,
+    TrimConfig, ConcatConfig, SpeedConfig, VideoSegment,
+};
