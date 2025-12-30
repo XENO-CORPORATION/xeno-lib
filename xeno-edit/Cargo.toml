@@ -1,0 +1,21 @@
+[package]
+name = "xeno-edit"
+version = "0.1.0"
+edition = "2024"
+description = "CLI tool for image editing powered by xeno-lib"
+
+[[bin]]
+name = "xeno-edit"
+path = "src/main.rs"
+
+[dependencies]
+xeno-lib = { path = "..", features = ["background-removal", "video-encode", "video-encode-h264", "video-decode", "audio", "audio-encode-flac", "text-overlay"] }
+clap = { version = "4.5", features = ["derive"] }
+image = "0.25"
+anyhow = "1.0"
+gif = "0.13"  # Native GIF encoding - no FFmpeg!
+webp-animation = "0.9"  # Animated WebP encoding (libwebp compiled-in)
+mp4 = "0.14"  # MP4 container parsing
+ivf = "0.1"   # IVF container parsing (for AV1 bitstreams)
+serde = { version = "1.0", features = ["derive"] }  # JSON serialization for agent API
+serde_json = "1.0"  # JSON parsing for agent API
