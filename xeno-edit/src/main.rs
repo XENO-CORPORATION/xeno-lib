@@ -3669,7 +3669,7 @@ fn cmd_video_transcode(
 
             (frames, source_fps)
         }
-        "mp4" | "m4v" | "mov" => {
+        "mp4" | "m4v" | "mov" | "mkv" | "webm" => {
             let mut demuxer = open_container(&input)
                 .with_context(|| format!("Failed to open container: {}", input.display()))?;
 
@@ -3725,7 +3725,7 @@ fn cmd_video_transcode(
             }
         }
         _ => {
-            anyhow::bail!("Unsupported input format: {}. Supported: ivf, mp4, m4v, mov", ext);
+            anyhow::bail!("Unsupported input format: {}. Supported: ivf, mp4, m4v, mov, mkv, webm", ext);
         }
     };
 
