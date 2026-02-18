@@ -22,6 +22,7 @@ use xeno_lib::agent::{Capabilities, ToAgentJson};
 use xeno_lib::background::{load_model, remove_background, BackgroundRemovalConfig};
 use xeno_lib::video::{encode_to_ivf, Av1EncoderConfig, EncodingSpeed};
 use xeno_lib::video::{encode_h264_to_mp4, encode_to_h264, H264EncoderConfig};
+use xeno_lib::video::open_container;
 use xeno_lib::video::decode::{DecodeCodec, NvDecoder, decode_ivf, best_decoder_for, DecoderBackend};
 use xeno_lib::audio::{AudioInfo, decode_file, encode_wav, encode_flac, WavConfig, FlacConfig};
 use xeno_lib::transforms::{
@@ -2478,23 +2479,127 @@ fn cmd_video_info(inputs: Vec<PathBuf>, json: bool, quiet: bool) -> Result<()> {
                 show_ivf_info(input, json, quiet)?;
             }
             "mkv" | "webm" => {
-                if !quiet && !json {
-                    println!("File: {}", input.display());
-                    println!("Format: {} (metadata parsing not yet implemented)", ext.to_uppercase());
-                    println!();
-                }
+                show_container_info(input, json, quiet)?;
             }
             _ => {
                 if !quiet && !json {
                     println!("File: {}", input.display());
                     println!("Error: Unsupported format '{}'", ext);
-                    println!("Supported: mp4, m4v, mov, ivf");
+                    println!("Supported: mp4, m4v, mov, ivf, mkv, webm");
                     println!();
                 }
             }
         }
     }
 
+    Ok(())
+}
+
+fn show_container_info(path: &PathBuf, json: bool, quiet: bool) -> Result<()> {
+    let file_size = std::fs::metadata(path)
+        .with_context(|| format!("Cannot stat file: {}", path.display()))?
+        .len();
+
+    let demuxer = match open_container(path) {
+        Ok(d) => d,
+        Err(e) => {
+            if json {
+                println!("{{");
+                println!("  \"file\": \"{}\",", path.display());
+                println!("  \"error\": \"{}\"", e.to_string().replace('"', "\\\""));
+                println!("}}");
+            } else if !quiet {
+                println!("File: {}", path.display());
+                println!("Error: {}", e);
+                println!();
+            }
+            return Ok(());
+        }
+    };
+
+    let v = demuxer.video_info().cloned();
+    let a = demuxer.audio_info().cloned();
+    let container = format!("{:?}", demuxer.container_type());
+
+    if json {
+        println!("{{");
+        println!("  \"file\": \"{}\",", path.display());
+        println!("  \"format\": \"{}\",", container);
+        println!("  \"size_bytes\": {},", file_size);
+
+        if let Some(info) = &v {
+            println!("  \"video\": {{");
+            println!("    \"codec\": \"{}\",", info.codec);
+            println!("    \"width\": {},", info.width);
+            println!("    \"height\": {},", info.height);
+            println!(
+                "    \"frame_rate\": {},",
+                info.frame_rate.map(|f| format!("{:.3}", f)).unwrap_or_else(|| "null".to_string())
+            );
+            println!(
+                "    \"duration_secs\": {},",
+                info.duration.map(|d| format!("{:.3}", d)).unwrap_or_else(|| "null".to_string())
+            );
+            println!(
+                "    \"frame_count\": {}",
+                info.frame_count.map(|c| c.to_string()).unwrap_or_else(|| "null".to_string())
+            );
+            println!("  }},");
+        } else {
+            println!("  \"video\": null,");
+        }
+
+        if let Some(info) = &a {
+            println!("  \"audio\": {{");
+            println!("    \"codec\": \"{}\",", info.codec);
+            println!("    \"sample_rate\": {},", info.sample_rate);
+            println!("    \"channels\": {},", info.channels);
+            println!(
+                "    \"duration_secs\": {}",
+                info.duration.map(|d| format!("{:.3}", d)).unwrap_or_else(|| "null".to_string())
+            );
+            println!("  }}");
+        } else {
+            println!("  \"audio\": null");
+        }
+
+        println!("}}");
+        return Ok(());
+    }
+
+    if !quiet {
+        println!("xeno-edit video-info");
+        println!("====================");
+        println!();
+    }
+
+    println!("File: {}", path.display());
+    println!("Format: {}", container);
+    println!("Size: {}", format_size(file_size));
+
+    if let Some(info) = v {
+        println!("Video Codec: {}", info.codec);
+        println!("Resolution: {}x{}", info.width, info.height);
+        if let Some(fps) = info.frame_rate {
+            println!("Frame rate: {:.2} fps", fps);
+        }
+        if let Some(frames) = info.frame_count {
+            println!("Frames: {}", frames);
+        }
+        if let Some(duration) = info.duration {
+            println!("Duration: {}", format_duration((duration * 1000.0) as u64));
+        }
+    } else {
+        println!("Video: none");
+    }
+
+    if let Some(info) = a {
+        println!("Audio Codec: {}", info.codec);
+        println!("Sample rate: {} Hz", info.sample_rate);
+        println!("Channels: {}", info.channels);
+    }
+
+    println!();
     Ok(())
 }
 
