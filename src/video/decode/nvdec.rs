@@ -1183,7 +1183,11 @@ impl VideoDecoder for NvDecoder {
 
         match ext.as_str() {
             "ivf" => {
-                self.decode_ivf_file(path)?;
+                let frames = self.decode_ivf_file(path)?;
+                let mut queue = self.decoded_frames.lock().map_err(|_| VideoError::Decoding {
+                    message: "Failed to lock frame queue".to_string(),
+                })?;
+                queue.extend(frames);
                 Ok(())
             }
             _ => Err(VideoError::Decoding {
