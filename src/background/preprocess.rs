@@ -19,7 +19,7 @@ const STD: [f32; 3] = [0.229, 0.224, 0.225];
 ///
 /// 1. Resize to target dimensions (bilinear interpolation)
 /// 2. Convert to RGB f32 in range [0, 1]
-/// 3. Normalize using BiRefNet/ImageNet mean/std values
+/// 3. Normalize using RMBG mean/std values
 /// 4. Transpose from HWC to CHW format
 /// 5. Add batch dimension
 ///

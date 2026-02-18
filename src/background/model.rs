@@ -107,7 +107,7 @@ impl ModelSession {
             })?;
 
         // Extract output mask
-        // BiRefNet output shape: [1, 1, H, W]
+        // RMBG-1.4 output shape: [1, 1, H, W]
         let output_tensor = outputs.iter().next().ok_or_else(|| {
             TransformError::InferenceFailed {
                 message: "no output tensor found".to_string(),

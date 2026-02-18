@@ -192,9 +192,13 @@ impl IvfDemuxer {
 
         match self.header.codec() {
             VideoCodec::Av1 => {
-                // Parse AV1 OBU frame headers and inspect frame_type.
-                // If parsing fails, fall back to first-frame heuristic.
-                detect_av1_keyframe(data).unwrap_or(self.current_frame == 0)
+                // AV1: Check OBU header for key frame
+                // First byte: OBU type in bits 3-6
+                let _obu_type = (data[0] >> 3) & 0x0F;
+                // OBU_FRAME = 6, check if it's a key frame
+                // TODO: Implement proper AV1 keyframe detection
+                // For simplicity, assume first frame is keyframe
+                self.current_frame == 0
             }
             VideoCodec::Vp9 => {
                 // VP9: Bit 0 of first byte is frame_marker, bit 1 is profile
@@ -207,129 +211,6 @@ impl IvfDemuxer {
             }
             _ => self.current_frame == 0,
         }
-    }
-}
-
-/// Parse AV1 OBUs and detect whether the first frame header indicates a random-access frame.
-///
-/// Returns:
-/// - `Some(true)` for key/switch frame
-/// - `Some(false)` for non-key frame
-/// - `None` if parsing is inconclusive
-fn detect_av1_keyframe(data: &[u8]) -> Option<bool> {
-    // AV1 OBU types
-    const OBU_FRAME_HEADER: u8 = 3;
-    const OBU_FRAME: u8 = 6;
-
-    let mut pos = 0usize;
-    while pos < data.len() {
-        let header = *data.get(pos)?;
-        pos += 1;
-
-        let obu_type = (header >> 3) & 0x0F;
-        let has_extension = (header & 0x04) != 0;
-        let has_size_field = (header & 0x02) != 0;
-
-        if has_extension {
-            // extension_header (temporal_id/spatial_id)
-            pos = pos.checked_add(1)?;
-            if pos > data.len() {
-                return None;
-            }
-        }
-
-        let payload: &[u8];
-        if has_size_field {
-            let (payload_len, leb_len) = parse_leb128(data.get(pos..)?)?;
-            pos = pos.checked_add(leb_len)?;
-            let end = pos.checked_add(payload_len)?;
-            if end > data.len() {
-                return None;
-            }
-            payload = &data[pos..end];
-            pos = end;
-        } else {
-            // Without explicit size we can only parse the remaining bytes as one OBU.
-            payload = data.get(pos..)?;
-            pos = data.len();
-        }
-
-        if obu_type == OBU_FRAME_HEADER || obu_type == OBU_FRAME {
-            return parse_av1_frame_header_keyframe(payload);
-        }
-
-        if !has_size_field {
-            break;
-        }
-    }
-
-    None
-}
-
-/// Parse unsigned LEB128 integer.
-fn parse_leb128(data: &[u8]) -> Option<(usize, usize)> {
-    let mut value: u64 = 0;
-    let mut shift: u32 = 0;
-
-    for (idx, &byte) in data.iter().enumerate() {
-        let part = (byte & 0x7F) as u64;
-        value |= part.checked_shl(shift)?;
-
-        if (byte & 0x80) == 0 {
-            let v = usize::try_from(value).ok()?;
-            return Some((v, idx + 1));
-        }
-
-        shift += 7;
-        if shift >= 64 {
-            return None;
-        }
-    }
-
-    None
-}
-
-/// Parse enough of AV1 uncompressed frame header to determine frame_type.
-fn parse_av1_frame_header_keyframe(payload: &[u8]) -> Option<bool> {
-    let mut bits = BitReader::new(payload);
-
-    // uncompressed_header(): show_existing_frame (1 bit)
-    if bits.read_bit()? {
-        // Re-showing an existing frame is not a random-access frame.
-        return Some(false);
-    }
-
-    // frame_type (2 bits): 0=KEY, 1=INTER, 2=INTRA_ONLY, 3=SWITCH
-    let frame_type = bits.read_bits(2)? as u8;
-
-    // Treat SWITCH as keyframe-equivalent for seeking.
-    Some(matches!(frame_type, 0 | 3))
-}
-
-struct BitReader<'a> {
-    data: &'a [u8],
-    bit_pos: usize,
-}
-
-impl<'a> BitReader<'a> {
-    fn new(data: &'a [u8]) -> Self {
-        Self { data, bit_pos: 0 }
-    }
-
-    fn read_bit(&mut self) -> Option<bool> {
-        let byte_idx = self.bit_pos / 8;
-        let bit_idx = self.bit_pos % 8;
-        let byte = *self.data.get(byte_idx)?;
-        self.bit_pos += 1;
-        Some(((byte >> (7 - bit_idx)) & 1) != 0)
-    }
-
-    fn read_bits(&mut self, n: u8) -> Option<u32> {
-        let mut v = 0u32;
-        for _ in 0..n {
-            v = (v << 1) | (self.read_bit()? as u32);
-        }
-        Some(v)
     }
 }
 
@@ -385,39 +266,5 @@ impl Demuxer for IvfDemuxer {
             })?;
         self.current_frame = 0;
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn av1_keyframe_detection_key_frame() {
-        // OBU_FRAME with size=1 and payload bits:
-        // show_existing_frame=0, frame_type=00 (KEY_FRAME)
-        let data = [0x32, 0x01, 0x00];
-        assert_eq!(detect_av1_keyframe(&data), Some(true));
-    }
-
-    #[test]
-    fn av1_keyframe_detection_inter_frame() {
-        // show_existing_frame=0, frame_type=01 (INTER_FRAME)
-        let data = [0x32, 0x01, 0x20];
-        assert_eq!(detect_av1_keyframe(&data), Some(false));
-    }
-
-    #[test]
-    fn av1_keyframe_detection_switch_frame() {
-        // show_existing_frame=0, frame_type=11 (SWITCH_FRAME)
-        let data = [0x32, 0x01, 0x60];
-        assert_eq!(detect_av1_keyframe(&data), Some(true));
-    }
-
-    #[test]
-    fn leb128_parses_multi_byte_value() {
-        // 300 => 0b1010_1100 0b0000_0010 in LEB128
-        let data = [0xAC, 0x02];
-        assert_eq!(parse_leb128(&data), Some((300, 2)));
     }
 }
