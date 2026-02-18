@@ -15,7 +15,7 @@ use crate::error::TransformError;
 #[derive(Debug, Clone)]
 pub struct BackgroundRemovalConfig {
     /// Path to the ONNX model file.
-    /// Default: `~/.xeno-lib/models/rmbg-1.4.onnx`
+    /// Default: `~/.xeno-lib/models/birefnet-general.onnx`
     pub model_path: PathBuf,
 
     /// Whether to attempt GPU (CUDA) acceleration.
@@ -249,8 +249,8 @@ mod tests {
         let config = BackgroundRemovalConfig::default();
         assert!(config.use_gpu);
         assert_eq!(config.gpu_device_id, 0);
-        assert!((config.confidence_threshold - 0.5).abs() < f32::EPSILON);
-        assert!(config.model_path.to_string_lossy().contains("rmbg-1.4.onnx"));
+        assert!((config.confidence_threshold - 0.1).abs() < f32::EPSILON);
+        assert!(config.model_path.to_string_lossy().contains("birefnet-general.onnx"));
     }
 
     #[test]

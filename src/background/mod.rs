@@ -1,6 +1,6 @@
 //! AI-powered background removal using ONNX Runtime.
 //!
-//! This module provides high-quality background removal powered by the RMBG-1.4
+//! This module provides high-quality background removal powered by a BiRefNet-style
 //! deep learning model. It supports both CUDA (GPU) and CPU execution, with
 //! automatic fallback when CUDA is unavailable.
 //!
@@ -22,10 +22,9 @@
 //!
 //! # Model Download
 //!
-//! The RMBG-1.4 model must be downloaded separately:
+//! The model must be downloaded separately:
 //!
-//! - **URL**: <https://huggingface.co/briaai/RMBG-1.4/resolve/main/onnx/model.onnx>
-//! - **Default path**: `~/.xeno-lib/models/rmbg-1.4.onnx`
+//! - **Default path**: `~/.xeno-lib/models/birefnet-general.onnx`
 //!
 //! # Features
 //!
@@ -145,7 +144,7 @@ mod tests {
         let config = BackgroundRemovalConfig::default();
         assert!(config.use_gpu);
         assert_eq!(config.gpu_device_id, 0);
-        assert!((config.confidence_threshold - 0.5).abs() < f32::EPSILON);
+        assert!((config.confidence_threshold - 0.1).abs() < f32::EPSILON);
     }
 
     #[test]

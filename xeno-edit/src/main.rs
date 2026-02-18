@@ -103,7 +103,7 @@ enum Commands {
         #[arg(short, long)]
         output_dir: Option<PathBuf>,
 
-        /// Custom model path (default: ~/.xeno-lib/models/rmbg-1.4.onnx)
+        /// Custom model path (default: ~/.xeno-lib/models/birefnet-general.onnx)
         #[arg(short, long)]
         model: Option<PathBuf>,
 
