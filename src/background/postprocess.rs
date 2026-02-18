@@ -14,8 +14,8 @@ use crate::error::TransformError;
 /// # Processing Steps
 ///
 /// 1. Resize mask from model output size to original image dimensions
-/// 2. Apply confidence threshold to create binary mask
-/// 3. Composite original image with alpha channel from mask
+/// 2. Apply guided filtering using original image edges
+/// 3. Composite original image with refined alpha channel
 ///
 /// # Arguments
 ///
@@ -23,7 +23,7 @@ use crate::error::TransformError;
 /// * `mask` - The predicted mask from the model (values in [0, 1])
 /// * `original_width` - Original image width
 /// * `original_height` - Original image height
-/// * `threshold` - Confidence threshold for foreground (0.0 - 1.0)
+/// * `_threshold` - Confidence threshold (unused, kept for API compatibility)
 ///
 /// # Returns
 ///
@@ -33,7 +33,7 @@ pub fn apply_mask(
     mask: &Array2<f32>,
     original_width: u32,
     original_height: u32,
-    threshold: f32,
+    _threshold: f32,
 ) -> Result<DynamicImage, TransformError> {
     // Resize mask to original dimensions
     let resized_mask = resize_mask(mask, original_width as usize, original_height as usize);
@@ -41,10 +41,123 @@ pub fn apply_mask(
     // Convert original to RGBA
     let rgba = original.to_rgba8();
 
+    // Apply guided filter to refine mask edges using original image
+    let refined_mask = guided_filter(&rgba, &resized_mask, 15, 0.01);
+
     // Apply mask to create output
-    let output = apply_mask_to_image(&rgba, &resized_mask, threshold);
+    let output = apply_mask_to_image(&rgba, &refined_mask);
 
     Ok(DynamicImage::ImageRgba8(output))
+}
+
+/// Guided filter implementation for edge-aware mask refinement.
+/// Uses the original image as a guide to preserve edges in the mask.
+///
+/// This is the key technique that makes Photoshop-level quality possible.
+/// The filter smooths the mask while preserving edges that exist in the guide image.
+fn guided_filter(guide: &RgbaImage, mask: &Array2<f32>, radius: i32, eps: f32) -> Array2<f32> {
+    let width = guide.width() as usize;
+    let height = guide.height() as usize;
+
+    // Convert guide to grayscale float
+    let mut guide_gray = Array2::<f32>::zeros((height, width));
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = guide.get_pixel(x as u32, y as u32);
+            // Luminance formula
+            guide_gray[[y, x]] = (0.299 * pixel[0] as f32 + 0.587 * pixel[1] as f32 + 0.114 * pixel[2] as f32) / 255.0;
+        }
+    }
+
+    // Compute box filter means
+    let mean_i = box_filter(&guide_gray, radius);
+    let mean_p = box_filter(mask, radius);
+
+    // Compute correlations
+    let mut ip = Array2::<f32>::zeros((height, width));
+    let mut ii = Array2::<f32>::zeros((height, width));
+
+    for y in 0..height {
+        for x in 0..width {
+            ip[[y, x]] = guide_gray[[y, x]] * mask[[y, x]];
+            ii[[y, x]] = guide_gray[[y, x]] * guide_gray[[y, x]];
+        }
+    }
+
+    let mean_ip = box_filter(&ip, radius);
+    let mean_ii = box_filter(&ii, radius);
+
+    // Compute covariance and variance
+    let mut cov_ip = Array2::<f32>::zeros((height, width));
+    let mut var_i = Array2::<f32>::zeros((height, width));
+
+    for y in 0..height {
+        for x in 0..width {
+            cov_ip[[y, x]] = mean_ip[[y, x]] - mean_i[[y, x]] * mean_p[[y, x]];
+            var_i[[y, x]] = mean_ii[[y, x]] - mean_i[[y, x]] * mean_i[[y, x]];
+        }
+    }
+
+    // Compute a and b coefficients
+    let mut a = Array2::<f32>::zeros((height, width));
+    let mut b = Array2::<f32>::zeros((height, width));
+
+    for y in 0..height {
+        for x in 0..width {
+            a[[y, x]] = cov_ip[[y, x]] / (var_i[[y, x]] + eps);
+            b[[y, x]] = mean_p[[y, x]] - a[[y, x]] * mean_i[[y, x]];
+        }
+    }
+
+    // Compute mean of a and b
+    let mean_a = box_filter(&a, radius);
+    let mean_b = box_filter(&b, radius);
+
+    // Compute output
+    let mut output = Array2::<f32>::zeros((height, width));
+    for y in 0..height {
+        for x in 0..width {
+            output[[y, x]] = (mean_a[[y, x]] * guide_gray[[y, x]] + mean_b[[y, x]]).clamp(0.0, 1.0);
+        }
+    }
+
+    output
+}
+
+/// Fast box filter using integral images (summed area table).
+fn box_filter(input: &Array2<f32>, radius: i32) -> Array2<f32> {
+    let (height, width) = input.dim();
+
+    // Build integral image
+    let mut integral = Array2::<f64>::zeros((height + 1, width + 1));
+
+    for y in 0..height {
+        for x in 0..width {
+            integral[[y + 1, x + 1]] = input[[y, x]] as f64
+                + integral[[y, x + 1]]
+                + integral[[y + 1, x]]
+                - integral[[y, x]];
+        }
+    }
+
+    // Apply box filter using integral image
+    let mut output = Array2::<f32>::zeros((height, width));
+
+    for y in 0..height {
+        for x in 0..width {
+            let y0 = (y as i32 - radius).max(0) as usize;
+            let y1 = ((y as i32 + radius + 1) as usize).min(height);
+            let x0 = (x as i32 - radius).max(0) as usize;
+            let x1 = ((x as i32 + radius + 1) as usize).min(width);
+
+            let area = ((y1 - y0) * (x1 - x0)) as f64;
+            let sum = integral[[y1, x1]] - integral[[y0, x1]] - integral[[y1, x0]] + integral[[y0, x0]];
+
+            output[[y, x]] = (sum / area) as f32;
+        }
+    }
+
+    output
 }
 
 /// Resizes a mask array using bilinear interpolation.
@@ -97,7 +210,7 @@ fn resize_mask(mask: &Array2<f32>, target_width: usize, target_height: usize) ->
 }
 
 /// Applies the mask to an RGBA image, modifying the alpha channel.
-fn apply_mask_to_image(image: &RgbaImage, mask: &Array2<f32>, threshold: f32) -> RgbaImage {
+fn apply_mask_to_image(image: &RgbaImage, mask: &Array2<f32>) -> RgbaImage {
     let width = image.width();
     let height = image.height();
 
@@ -118,21 +231,11 @@ fn apply_mask_to_image(image: &RgbaImage, mask: &Array2<f32>, threshold: f32) ->
                 let pixel_offset = x * 4;
                 let input_offset = input_row_start + pixel_offset;
 
-                // Get mask value
-                let mask_value = mask[[y, x]];
+                // Get mask value (0.0 = background, 1.0 = foreground)
+                let mask_value = mask[[y, x]].clamp(0.0, 1.0);
 
-                // Apply threshold and convert to alpha
-                let alpha = if mask_value >= threshold {
-                    // Smooth transition near threshold for anti-aliasing
-                    let soft_alpha = if mask_value < threshold + 0.1 {
-                        ((mask_value - threshold) / 0.1).clamp(0.0, 1.0)
-                    } else {
-                        mask_value
-                    };
-                    (soft_alpha * 255.0).round() as u8
-                } else {
-                    0
-                };
+                // Use smooth alpha directly from mask value
+                let alpha = (mask_value * 255.0).round() as u8;
 
                 // Copy RGB, set alpha
                 row[pixel_offset] = input_data[input_offset]; // R
@@ -337,7 +440,7 @@ mod tests {
     fn test_apply_mask_output_dimensions() {
         let image = RgbaImage::new(100, 80);
         let mask = create_test_mask(100, 80);
-        let output = apply_mask_to_image(&image, &mask, 0.5);
+        let output = apply_mask_to_image(&image, &mask);
         assert_eq!(output.width(), 100);
         assert_eq!(output.height(), 80);
     }

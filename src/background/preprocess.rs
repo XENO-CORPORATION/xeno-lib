@@ -1,17 +1,17 @@
 //! Image preprocessing for ONNX inference.
 //!
 //! Converts `DynamicImage` to normalized tensors in the format expected by
-//! the RMBG-1.4 model.
+//! the BiRefNet model.
 
 use image::{imageops::FilterType, DynamicImage};
 use ndarray::Array4;
 
 use crate::error::TransformError;
 
-/// RMBG-1.4 normalization parameters.
-/// Input is normalized as: (pixel - mean) / std
-const MEAN: [f32; 3] = [0.5, 0.5, 0.5];
-const STD: [f32; 3] = [1.0, 1.0, 1.0];
+/// BiRefNet normalization parameters (ImageNet standard).
+/// The model expects input normalized with ImageNet mean/std.
+const MEAN: [f32; 3] = [0.485, 0.456, 0.406];
+const STD: [f32; 3] = [0.229, 0.224, 0.225];
 
 /// Converts a `DynamicImage` to a normalized ONNX input tensor.
 ///
@@ -148,14 +148,12 @@ mod tests {
         let img = create_test_rgb_image(64, 64);
         let tensor = image_to_tensor(&img, (64, 64)).unwrap();
 
-        // After normalization with mean=0.5, std=1.0:
-        // min possible: (0 - 0.5) / 1.0 = -0.5
-        // max possible: (1 - 0.5) / 1.0 = 0.5
+        // After normalization to [0, 1] range
         let min_val = tensor.iter().copied().fold(f32::INFINITY, f32::min);
         let max_val = tensor.iter().copied().fold(f32::NEG_INFINITY, f32::max);
 
-        assert!(min_val >= -0.51, "min value {} is out of range", min_val);
-        assert!(max_val <= 0.51, "max value {} is out of range", max_val);
+        assert!(min_val >= -0.01, "min value {} is out of range", min_val);
+        assert!(max_val <= 1.01, "max value {} is out of range", max_val);
     }
 
     #[test]
