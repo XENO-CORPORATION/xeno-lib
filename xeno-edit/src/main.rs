@@ -23,7 +23,11 @@ use xeno_lib::background::{load_model, remove_background, BackgroundRemovalConfi
 use xeno_lib::video::{encode_to_ivf, Av1EncoderConfig, EncodingSpeed};
 use xeno_lib::video::{encode_h264_to_mp4, encode_to_h264, H264EncoderConfig};
 use xeno_lib::video::open_container;
-use xeno_lib::video::decode::{DecodeCodec, NvDecoder, decode_ivf, best_decoder_for, DecoderBackend};
+use xeno_lib::video::VideoCodec;
+use xeno_lib::video::decode::{
+    DecodeCodec, DecoderBackend, DecoderConfig, NvDecoder, VideoDecoder, best_decoder_for,
+    decode_ivf,
+};
 use xeno_lib::audio::{AudioInfo, decode_file, encode_wav, encode_flac, WavConfig, FlacConfig};
 use xeno_lib::transforms::{
     flip_horizontal, flip_vertical, flip_both, rotate_90_cw, rotate_180, rotate_270_cw, crop,
@@ -3666,10 +3670,59 @@ fn cmd_video_transcode(
             (frames, source_fps)
         }
         "mp4" | "m4v" | "mov" => {
-            // Use container demuxer for MP4
-            // For now, return an error since we need to implement MP4 frame decoding
-            // The demuxer provides packets, but we need NVDEC to decode them
-            anyhow::bail!("MP4 transcoding requires FFmpeg-based decoding (not yet implemented). Use IVF input for now.");
+            let mut demuxer = open_container(&input)
+                .with_context(|| format!("Failed to open container: {}", input.display()))?;
+
+            let video_info = demuxer.video_info().cloned()
+                .ok_or_else(|| anyhow::anyhow!("No video stream found in {}", input.display()))?;
+
+            let source_fps = video_info.frame_rate.unwrap_or(30.0);
+
+            let decode_codec = match video_info.codec {
+                VideoCodec::Av1 => DecodeCodec::Av1,
+                VideoCodec::H264 => DecodeCodec::H264,
+                VideoCodec::H265 => DecodeCodec::H265,
+                VideoCodec::Vp8 => DecodeCodec::Vp8,
+                VideoCodec::Vp9 => DecodeCodec::Vp9,
+                other => anyhow::bail!("Unsupported container video codec for transcoding: {}", other),
+            };
+
+            match best_decoder_for(decode_codec) {
+                DecoderBackend::Nvdec => {
+                    let mut decoder = NvDecoder::new(DecoderConfig::new(decode_codec))
+                        .context("Failed to initialize NVDEC decoder")?;
+
+                    let mut frames = Vec::new();
+
+                    while let Some(packet) = demuxer.next_video_packet()
+                        .context("Failed reading container video packet")? {
+                        decoder.decode_packet(&packet.data, packet.pts)
+                            .context("Failed to decode packet with NVDEC")?;
+
+                        while let Some(frame) = decoder.next_frame()
+                            .context("Failed to read decoded NVDEC frame")? {
+                            frames.push(frame);
+                        }
+                    }
+
+                    decoder.flush().context("Failed to flush NVDEC decoder")?;
+                    while let Some(frame) = decoder.next_frame()
+                        .context("Failed to read flushed NVDEC frame")? {
+                        frames.push(frame);
+                    }
+
+                    (frames, source_fps)
+                }
+                DecoderBackend::Dav1d => {
+                    anyhow::bail!(
+                        "Software AV1 decoder is currently IVF-only for transcoding. \
+                         Use IVF input or run on a system with NVDEC."
+                    );
+                }
+                DecoderBackend::None => {
+                    anyhow::bail!("No compatible decoder available for codec {:?}", decode_codec);
+                }
+            }
         }
         _ => {
             anyhow::bail!("Unsupported input format: {}. Supported: ivf, mp4, m4v, mov", ext);
