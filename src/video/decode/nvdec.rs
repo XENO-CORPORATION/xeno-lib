@@ -1156,6 +1156,21 @@ impl NvDecoder {
 
         Ok(frames)
     }
+
+    /// Move frames produced by parser callbacks into the public dequeue.
+    fn drain_callback_frames_to_queue(&mut self) -> Result<usize, VideoError> {
+        let frames = std::mem::take(&mut self.callback_state.decoded_frames);
+        if frames.is_empty() {
+            return Ok(0);
+        }
+
+        let count = frames.len();
+        let mut queue = self.decoded_frames.lock().map_err(|_| VideoError::Decoding {
+            message: "Failed to lock frame queue".to_string(),
+        })?;
+        queue.extend(frames);
+        Ok(count)
+    }
 }
 
 impl VideoDecoder for NvDecoder {
@@ -1168,7 +1183,11 @@ impl VideoDecoder for NvDecoder {
 
         match ext.as_str() {
             "ivf" => {
-                self.decode_ivf_file(path)?;
+                let frames = self.decode_ivf_file(path)?;
+                let mut queue = self.decoded_frames.lock().map_err(|_| VideoError::Decoding {
+                    message: "Failed to lock frame queue".to_string(),
+                })?;
+                queue.extend(frames);
                 Ok(())
             }
             _ => Err(VideoError::Decoding {
@@ -1177,14 +1196,63 @@ impl VideoDecoder for NvDecoder {
         }
     }
 
-    fn decode_packet(&mut self, _data: &[u8], _pts: i64) -> Result<(), VideoError> {
-        // TODO: Implement packet-level decoding
-        self.frame_count += 1;
+    fn decode_packet(&mut self, data: &[u8], pts: i64) -> Result<(), VideoError> {
+        if data.is_empty() {
+            return Ok(());
+        }
+
+        let nvdec_lib = nvdec();
+        let packet = CuvidSourceDataPacket {
+            flags: CUVID_PKT_TIMESTAMP,
+            payload_size: data.len() as c_ulong,
+            payload: data.as_ptr(),
+            timestamp: pts.max(0) as c_ulonglong,
+        };
+
+        let result = unsafe { (nvdec_lib.cuvid_parse_video_data)(self.parser, &packet) };
+        if result != CUDA_SUCCESS {
+            return Err(VideoError::Decoding {
+                message: format!("cuvidParseVideoData failed: {}", result),
+            });
+        }
+
+        if let Some(error) = self.callback_state.error.take() {
+            return Err(VideoError::Decoding { message: error });
+        }
+
+        self.decoder = self.callback_state.decoder;
+        self.initialized = !self.decoder.is_null();
+
+        let produced = self.drain_callback_frames_to_queue()?;
+        self.frame_count += produced as u64;
         Ok(())
     }
 
     fn flush(&mut self) -> Result<(), VideoError> {
-        // TODO: Implement flush
+        let nvdec_lib = nvdec();
+        let eos_packet = CuvidSourceDataPacket {
+            flags: CUVID_PKT_ENDOFSTREAM,
+            payload_size: 0,
+            payload: ptr::null(),
+            timestamp: 0,
+        };
+
+        let result = unsafe { (nvdec_lib.cuvid_parse_video_data)(self.parser, &eos_packet) };
+        if result != CUDA_SUCCESS {
+            return Err(VideoError::Decoding {
+                message: format!("cuvidParseVideoData (EOS) failed: {}", result),
+            });
+        }
+
+        if let Some(error) = self.callback_state.error.take() {
+            return Err(VideoError::Decoding { message: error });
+        }
+
+        self.decoder = self.callback_state.decoder;
+        self.initialized = !self.decoder.is_null();
+
+        let produced = self.drain_callback_frames_to_queue()?;
+        self.frame_count += produced as u64;
         Ok(())
     }
 

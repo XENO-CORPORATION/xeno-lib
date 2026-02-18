@@ -537,9 +537,10 @@ where
     I: Iterator<Item = &'a DynamicImage>,
     P: AsRef<Path>,
 {
-    // For now, encode to IVF and note that MP4 muxing requires more work
-    // The mp4 crate primarily supports H.264, not AV1 muxing
-    // TODO: Implement proper AV1 MP4 muxing when crate support improves
+    // Compatibility shim:
+    // AV1-in-MP4 writing is not supported by our current muxing stack.
+    // We intentionally encode IVF next to the requested output path.
+    // Callers should remux the IVF stream externally when MP4 is required.
 
     let ivf_path = output.as_ref().with_extension("ivf");
     let frames = encode_to_ivf(images, &ivf_path, config)?;

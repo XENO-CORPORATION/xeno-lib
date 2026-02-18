@@ -13,7 +13,7 @@
 | Feature | Description | Model |
 |---------|-------------|-------|
 | **Upscaling** | 2x/4x/8x neural super-resolution | Real-ESRGAN |
-| **Background Removal** | Deep learning segmentation | RMBG-1.4 |
+| **Background Removal** | Deep learning segmentation | BiRefNet |
 | **Face Restoration** | Photo restoration | GFPGAN/CodeFormer |
 | **Colorization** | B&W photo colorization | DDColor/DeOldify |
 | **Frame Interpolation** | Smooth slow-motion | RIFE |
@@ -281,7 +281,7 @@ xeno-lib = { version = "0.1", features = ["full"] }
 
 | Feature | Description | GPU Support |
 |---------|-------------|-------------|
-| `background-removal` | RMBG-1.4 background removal | `background-removal-cuda` |
+| `background-removal` | BiRefNet background removal | `background-removal-cuda` |
 | `upscale` | Real-ESRGAN 2x/4x/8x upscaling | `upscale-cuda` |
 | `face-restore` | GFPGAN/CodeFormer face restoration | `face-restore-cuda` |
 | `colorize` | DDColor/DeOldify colorization | `colorize-cuda` |
@@ -340,7 +340,7 @@ Download ONNX models to `~/.xeno-lib/models/`:
 
 | Model | Size | Use |
 |-------|------|-----|
-| RMBG-1.4 | ~176MB | Background removal |
+| BiRefNet General | ~176MB | Background removal |
 | Real-ESRGAN x4 | ~67MB | Upscaling |
 | GFPGAN | ~348MB | Face restoration |
 | DDColor | ~93MB | Colorization |
@@ -366,7 +366,7 @@ xeno-lib achieves **~95% feature parity** with FFmpeg for common operations, plu
 | Capability | xeno-lib | FFmpeg |
 |------------|----------|--------|
 | AI Upscaling | Real-ESRGAN 2x/4x/8x | None |
-| Background Removal | RMBG deep learning | None |
+| Background Removal | BiRefNet deep learning | None |
 | Face Restoration | GFPGAN | None |
 | Image Colorization | DDColor | None |
 | Object Removal | LaMa inpainting | None |
@@ -429,7 +429,7 @@ xeno-lib/
 │   │   ├── effects.rs         # Reverb, EQ, pitch, etc.
 │   │   └── visualization.rs   # Waveform, spectrum
 │   ├── audio_separate/        # Demucs voice isolation
-│   ├── background/            # RMBG background removal
+│   ├── background/            # BiRefNet background removal
 │   ├── colorize/              # DDColor colorization
 │   ├── composite/             # Overlay, watermark, borders
 │   ├── depth/                 # MiDaS depth estimation

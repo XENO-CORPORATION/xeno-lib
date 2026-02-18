@@ -1,6 +1,6 @@
 //! OCR processing logic.
 
-use image::{DynamicImage, GrayImage, Rgba, RgbaImage, imageops::FilterType};
+use image::{DynamicImage, Rgba, RgbaImage, imageops::FilterType};
 use ndarray::Array4;
 
 use crate::error::TransformError;
@@ -212,20 +212,138 @@ fn crop_text_region(
     image: &DynamicImage,
     vertices: &[(f32, f32); 4],
 ) -> Result<DynamicImage, TransformError> {
-    // Get axis-aligned bounding box
-    let min_x = vertices.iter().map(|v| v.0).fold(f32::MAX, f32::min).max(0.0) as u32;
-    let max_x = vertices.iter().map(|v| v.0).fold(f32::MIN, f32::max).min(image.width() as f32) as u32;
-    let min_y = vertices.iter().map(|v| v.1).fold(f32::MAX, f32::min).max(0.0) as u32;
-    let max_y = vertices.iter().map(|v| v.1).fold(f32::MIN, f32::max).min(image.height() as f32) as u32;
+    let source = image.to_rgba8();
+    if source.width() == 0 || source.height() == 0 {
+        return Err(TransformError::InvalidDimensions {
+            width: source.width(),
+            height: source.height(),
+        });
+    }
 
-    let width = max_x.saturating_sub(min_x).max(1);
-    let height = max_y.saturating_sub(min_y).max(1);
+    // Clamp vertices to image bounds and normalize ordering to:
+    // top-left, top-right, bottom-right, bottom-left.
+    let max_x = source.width().saturating_sub(1) as f32;
+    let max_y = source.height().saturating_sub(1) as f32;
+    let mut clamped = [(0.0f32, 0.0f32); 4];
+    for (i, (x, y)) in vertices.iter().enumerate() {
+        clamped[i] = (x.clamp(0.0, max_x), y.clamp(0.0, max_y));
+    }
+    let ordered = order_quad_points(&clamped);
 
-    let cropped = image.crop_imm(min_x, min_y, width, height);
+    // Estimate output size from opposing edge lengths.
+    let top_w = point_distance(ordered[0], ordered[1]);
+    let bottom_w = point_distance(ordered[3], ordered[2]);
+    let left_h = point_distance(ordered[0], ordered[3]);
+    let right_h = point_distance(ordered[1], ordered[2]);
 
-    // TODO: Apply perspective transform for rotated text
+    let out_width = top_w.max(bottom_w).round().max(1.0) as u32;
+    let out_height = left_h.max(right_h).round().max(1.0) as u32;
 
-    Ok(cropped)
+    let mut output = RgbaImage::new(out_width, out_height);
+    let width_denom = out_width.saturating_sub(1).max(1) as f32;
+    let height_denom = out_height.saturating_sub(1).max(1) as f32;
+
+    // Warp quadrilateral to an axis-aligned rectangle using bilinear interpolation
+    // between quad edges. This handles rotated/tilted text regions for recognition.
+    for y in 0..out_height {
+        let t = y as f32 / height_denom;
+        let left = lerp_point(ordered[0], ordered[3], t);
+        let right = lerp_point(ordered[1], ordered[2], t);
+
+        for x in 0..out_width {
+            let s = x as f32 / width_denom;
+            let src = lerp_point(left, right, s);
+            let px = bilinear_sample_rgba(&source, src.0, src.1);
+            output.put_pixel(x, y, px);
+        }
+    }
+
+    Ok(DynamicImage::ImageRgba8(output))
+}
+
+/// Order quadrilateral points to [top-left, top-right, bottom-right, bottom-left].
+fn order_quad_points(vertices: &[(f32, f32); 4]) -> [(f32, f32); 4] {
+    let mut top_left = vertices[0];
+    let mut top_right = vertices[0];
+    let mut bottom_right = vertices[0];
+    let mut bottom_left = vertices[0];
+
+    let mut min_sum = vertices[0].0 + vertices[0].1;
+    let mut max_sum = min_sum;
+    let mut max_diff = vertices[0].0 - vertices[0].1;
+    let mut min_diff = max_diff;
+
+    for &(x, y) in vertices.iter().skip(1) {
+        let sum = x + y;
+        let diff = x - y;
+
+        if sum < min_sum {
+            min_sum = sum;
+            top_left = (x, y);
+        }
+        if sum > max_sum {
+            max_sum = sum;
+            bottom_right = (x, y);
+        }
+        if diff > max_diff {
+            max_diff = diff;
+            top_right = (x, y);
+        }
+        if diff < min_diff {
+            min_diff = diff;
+            bottom_left = (x, y);
+        }
+    }
+
+    [top_left, top_right, bottom_right, bottom_left]
+}
+
+#[inline]
+fn point_distance(a: (f32, f32), b: (f32, f32)) -> f32 {
+    let dx = a.0 - b.0;
+    let dy = a.1 - b.1;
+    (dx * dx + dy * dy).sqrt()
+}
+
+#[inline]
+fn lerp_point(a: (f32, f32), b: (f32, f32), t: f32) -> (f32, f32) {
+    let t = t.clamp(0.0, 1.0);
+    (a.0 + (b.0 - a.0) * t, a.1 + (b.1 - a.1) * t)
+}
+
+fn bilinear_sample_rgba(image: &RgbaImage, x: f32, y: f32) -> Rgba<u8> {
+    let max_x = image.width().saturating_sub(1) as f32;
+    let max_y = image.height().saturating_sub(1) as f32;
+    let x = x.clamp(0.0, max_x);
+    let y = y.clamp(0.0, max_y);
+
+    let x0 = x.floor() as u32;
+    let y0 = y.floor() as u32;
+    let x1 = (x0 + 1).min(image.width().saturating_sub(1));
+    let y1 = (y0 + 1).min(image.height().saturating_sub(1));
+
+    let fx = x - x0 as f32;
+    let fy = y - y0 as f32;
+
+    let p00 = image.get_pixel(x0, y0);
+    let p10 = image.get_pixel(x1, y0);
+    let p01 = image.get_pixel(x0, y1);
+    let p11 = image.get_pixel(x1, y1);
+
+    let mut out = [0u8; 4];
+    for c in 0..4 {
+        let v00 = p00[c] as f32;
+        let v10 = p10[c] as f32;
+        let v01 = p01[c] as f32;
+        let v11 = p11[c] as f32;
+
+        let top = v00 * (1.0 - fx) + v10 * fx;
+        let bottom = v01 * (1.0 - fx) + v11 * fx;
+        let value = top * (1.0 - fy) + bottom * fy;
+        out[c] = value.round().clamp(0.0, 255.0) as u8;
+    }
+
+    Rgba(out)
 }
 
 /// Draw quadrilateral box on image.
@@ -309,5 +427,47 @@ mod tests {
 
         assert_eq!(result.blocks.len(), 1);
         assert_eq!(result.blocks[0].text, "Hello");
+    }
+
+    #[test]
+    fn test_crop_text_region_axis_aligned() {
+        let mut img = RgbaImage::from_pixel(120, 80, Rgba([0, 0, 0, 255]));
+        for y in 20..50 {
+            for x in 30..90 {
+                img.put_pixel(x, y, Rgba([255, 255, 255, 255]));
+            }
+        }
+        let image = DynamicImage::ImageRgba8(img);
+        let vertices = [(30.0, 20.0), (90.0, 20.0), (90.0, 50.0), (30.0, 50.0)];
+
+        let cropped = crop_text_region(&image, &vertices).unwrap();
+        assert!(cropped.width() >= 59);
+        assert!(cropped.height() >= 29);
+
+        let center = cropped
+            .to_rgba8()
+            .get_pixel(cropped.width() / 2, cropped.height() / 2)
+            .0;
+        assert!(center[0] > 200);
+        assert!(center[1] > 200);
+        assert!(center[2] > 200);
+    }
+
+    #[test]
+    fn test_crop_text_region_rotated_quad() {
+        let mut img = RgbaImage::from_pixel(120, 120, Rgba([0, 0, 0, 255]));
+        for y in 35..85 {
+            for x in 40..80 {
+                img.put_pixel(x, y, Rgba([220, 220, 220, 255]));
+            }
+        }
+        let image = DynamicImage::ImageRgba8(img);
+
+        // Roughly rotated text box.
+        let vertices = [(35.0, 45.0), (75.0, 30.0), (88.0, 75.0), (48.0, 90.0)];
+        let cropped = crop_text_region(&image, &vertices).unwrap();
+
+        assert!(cropped.width() > 20);
+        assert!(cropped.height() > 20);
     }
 }

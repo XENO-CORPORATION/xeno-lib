@@ -22,7 +22,12 @@ use xeno_lib::agent::{Capabilities, ToAgentJson};
 use xeno_lib::background::{load_model, remove_background, BackgroundRemovalConfig};
 use xeno_lib::video::{encode_to_ivf, Av1EncoderConfig, EncodingSpeed};
 use xeno_lib::video::{encode_h264_to_mp4, encode_to_h264, H264EncoderConfig};
-use xeno_lib::video::decode::{DecodeCodec, NvDecoder, decode_ivf, best_decoder_for, DecoderBackend};
+use xeno_lib::video::open_container;
+use xeno_lib::video::VideoCodec;
+use xeno_lib::video::decode::{
+    DecodeCodec, DecoderBackend, DecoderConfig, NvDecoder, VideoDecoder, best_decoder_for,
+    decode_ivf,
+};
 use xeno_lib::audio::{AudioInfo, decode_file, encode_wav, encode_flac, WavConfig, FlacConfig};
 use xeno_lib::transforms::{
     flip_horizontal, flip_vertical, flip_both, rotate_90_cw, rotate_180, rotate_270_cw, crop,
@@ -103,7 +108,7 @@ enum Commands {
         #[arg(short, long)]
         output_dir: Option<PathBuf>,
 
-        /// Custom model path (default: ~/.xeno-lib/models/rmbg-1.4.onnx)
+        /// Custom model path (default: ~/.xeno-lib/models/birefnet-general.onnx)
         #[arg(short, long)]
         model: Option<PathBuf>,
 
@@ -2478,23 +2483,127 @@ fn cmd_video_info(inputs: Vec<PathBuf>, json: bool, quiet: bool) -> Result<()> {
                 show_ivf_info(input, json, quiet)?;
             }
             "mkv" | "webm" => {
-                if !quiet && !json {
-                    println!("File: {}", input.display());
-                    println!("Format: {} (metadata parsing not yet implemented)", ext.to_uppercase());
-                    println!();
-                }
+                show_container_info(input, json, quiet)?;
             }
             _ => {
                 if !quiet && !json {
                     println!("File: {}", input.display());
                     println!("Error: Unsupported format '{}'", ext);
-                    println!("Supported: mp4, m4v, mov, ivf");
+                    println!("Supported: mp4, m4v, mov, ivf, mkv, webm");
                     println!();
                 }
             }
         }
     }
 
+    Ok(())
+}
+
+fn show_container_info(path: &PathBuf, json: bool, quiet: bool) -> Result<()> {
+    let file_size = std::fs::metadata(path)
+        .with_context(|| format!("Cannot stat file: {}", path.display()))?
+        .len();
+
+    let demuxer = match open_container(path) {
+        Ok(d) => d,
+        Err(e) => {
+            if json {
+                println!("{{");
+                println!("  \"file\": \"{}\",", path.display());
+                println!("  \"error\": \"{}\"", e.to_string().replace('"', "\\\""));
+                println!("}}");
+            } else if !quiet {
+                println!("File: {}", path.display());
+                println!("Error: {}", e);
+                println!();
+            }
+            return Ok(());
+        }
+    };
+
+    let v = demuxer.video_info().cloned();
+    let a = demuxer.audio_info().cloned();
+    let container = format!("{:?}", demuxer.container_type());
+
+    if json {
+        println!("{{");
+        println!("  \"file\": \"{}\",", path.display());
+        println!("  \"format\": \"{}\",", container);
+        println!("  \"size_bytes\": {},", file_size);
+
+        if let Some(info) = &v {
+            println!("  \"video\": {{");
+            println!("    \"codec\": \"{}\",", info.codec);
+            println!("    \"width\": {},", info.width);
+            println!("    \"height\": {},", info.height);
+            println!(
+                "    \"frame_rate\": {},",
+                info.frame_rate.map(|f| format!("{:.3}", f)).unwrap_or_else(|| "null".to_string())
+            );
+            println!(
+                "    \"duration_secs\": {},",
+                info.duration.map(|d| format!("{:.3}", d)).unwrap_or_else(|| "null".to_string())
+            );
+            println!(
+                "    \"frame_count\": {}",
+                info.frame_count.map(|c| c.to_string()).unwrap_or_else(|| "null".to_string())
+            );
+            println!("  }},");
+        } else {
+            println!("  \"video\": null,");
+        }
+
+        if let Some(info) = &a {
+            println!("  \"audio\": {{");
+            println!("    \"codec\": \"{}\",", info.codec);
+            println!("    \"sample_rate\": {},", info.sample_rate);
+            println!("    \"channels\": {},", info.channels);
+            println!(
+                "    \"duration_secs\": {}",
+                info.duration.map(|d| format!("{:.3}", d)).unwrap_or_else(|| "null".to_string())
+            );
+            println!("  }}");
+        } else {
+            println!("  \"audio\": null");
+        }
+
+        println!("}}");
+        return Ok(());
+    }
+
+    if !quiet {
+        println!("xeno-edit video-info");
+        println!("====================");
+        println!();
+    }
+
+    println!("File: {}", path.display());
+    println!("Format: {}", container);
+    println!("Size: {}", format_size(file_size));
+
+    if let Some(info) = v {
+        println!("Video Codec: {}", info.codec);
+        println!("Resolution: {}x{}", info.width, info.height);
+        if let Some(fps) = info.frame_rate {
+            println!("Frame rate: {:.2} fps", fps);
+        }
+        if let Some(frames) = info.frame_count {
+            println!("Frames: {}", frames);
+        }
+        if let Some(duration) = info.duration {
+            println!("Duration: {}", format_duration((duration * 1000.0) as u64));
+        }
+    } else {
+        println!("Video: none");
+    }
+
+    if let Some(info) = a {
+        println!("Audio Codec: {}", info.codec);
+        println!("Sample rate: {} Hz", info.sample_rate);
+        println!("Channels: {}", info.channels);
+    }
+
+    println!();
     Ok(())
 }
 
@@ -3561,10 +3670,59 @@ fn cmd_video_transcode(
             (frames, source_fps)
         }
         "mp4" | "m4v" | "mov" => {
-            // Use container demuxer for MP4
-            // For now, return an error since we need to implement MP4 frame decoding
-            // The demuxer provides packets, but we need NVDEC to decode them
-            anyhow::bail!("MP4 transcoding requires FFmpeg-based decoding (not yet implemented). Use IVF input for now.");
+            let mut demuxer = open_container(&input)
+                .with_context(|| format!("Failed to open container: {}", input.display()))?;
+
+            let video_info = demuxer.video_info().cloned()
+                .ok_or_else(|| anyhow::anyhow!("No video stream found in {}", input.display()))?;
+
+            let source_fps = video_info.frame_rate.unwrap_or(30.0);
+
+            let decode_codec = match video_info.codec {
+                VideoCodec::Av1 => DecodeCodec::Av1,
+                VideoCodec::H264 => DecodeCodec::H264,
+                VideoCodec::H265 => DecodeCodec::H265,
+                VideoCodec::Vp8 => DecodeCodec::Vp8,
+                VideoCodec::Vp9 => DecodeCodec::Vp9,
+                other => anyhow::bail!("Unsupported container video codec for transcoding: {}", other),
+            };
+
+            match best_decoder_for(decode_codec) {
+                DecoderBackend::Nvdec => {
+                    let mut decoder = NvDecoder::new(DecoderConfig::new(decode_codec))
+                        .context("Failed to initialize NVDEC decoder")?;
+
+                    let mut frames = Vec::new();
+
+                    while let Some(packet) = demuxer.next_video_packet()
+                        .context("Failed reading container video packet")? {
+                        decoder.decode_packet(&packet.data, packet.pts)
+                            .context("Failed to decode packet with NVDEC")?;
+
+                        while let Some(frame) = decoder.next_frame()
+                            .context("Failed to read decoded NVDEC frame")? {
+                            frames.push(frame);
+                        }
+                    }
+
+                    decoder.flush().context("Failed to flush NVDEC decoder")?;
+                    while let Some(frame) = decoder.next_frame()
+                        .context("Failed to read flushed NVDEC frame")? {
+                        frames.push(frame);
+                    }
+
+                    (frames, source_fps)
+                }
+                DecoderBackend::Dav1d => {
+                    anyhow::bail!(
+                        "Software AV1 decoder is currently IVF-only for transcoding. \
+                         Use IVF input or run on a system with NVDEC."
+                    );
+                }
+                DecoderBackend::None => {
+                    anyhow::bail!("No compatible decoder available for codec {:?}", decode_codec);
+                }
+            }
         }
         _ => {
             anyhow::bail!("Unsupported input format: {}. Supported: ivf, mp4, m4v, mov", ext);

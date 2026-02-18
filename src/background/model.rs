@@ -15,7 +15,7 @@ use crate::error::TransformError;
 #[derive(Debug, Clone)]
 pub struct BackgroundRemovalConfig {
     /// Path to the ONNX model file.
-    /// Default: `~/.xeno-lib/models/rmbg-1.4.onnx`
+    /// Default: `~/.xeno-lib/models/birefnet-general.onnx`
     pub model_path: PathBuf,
 
     /// Whether to attempt GPU (CUDA) acceleration.
@@ -36,7 +36,7 @@ impl Default for BackgroundRemovalConfig {
             model_path: default_model_path(),
             use_gpu: true,
             gpu_device_id: 0,
-            confidence_threshold: 0.5,
+            confidence_threshold: 0.1,
         }
     }
 }
@@ -44,7 +44,7 @@ impl Default for BackgroundRemovalConfig {
 /// Returns the default model path based on the user's home directory.
 fn default_model_path() -> PathBuf {
     let home = dirs_next().unwrap_or_else(|| PathBuf::from("."));
-    home.join(".xeno-lib").join("models").join("rmbg-1.4.onnx")
+    home.join(".xeno-lib").join("models").join("birefnet-general.onnx")
 }
 
 /// Cross-platform home directory detection.
@@ -107,7 +107,7 @@ impl ModelSession {
             })?;
 
         // Extract output mask
-        // RMBG-1.4 output shape: [1, 1, H, W]
+        // BiRefNet output shape: [1, 1, H, W]
         let output_tensor = outputs.iter().next().ok_or_else(|| {
             TransformError::InferenceFailed {
                 message: "no output tensor found".to_string(),
@@ -191,6 +191,14 @@ pub fn load_model(config: &BackgroundRemovalConfig) -> Result<ModelSession, Tran
         .with_optimization_level(GraphOptimizationLevel::Level3)
         .map_err(|e| TransformError::ModelLoadFailed {
             message: format!("failed to set optimization level: {e}"),
+        })?
+        .with_memory_pattern(true)
+        .map_err(|e| TransformError::ModelLoadFailed {
+            message: format!("failed to enable memory pattern: {e}"),
+        })?
+        .with_intra_threads(4)
+        .map_err(|e| TransformError::ModelLoadFailed {
+            message: format!("failed to set intra threads: {e}"),
         })?;
 
     // Configure execution providers
@@ -222,7 +230,7 @@ pub fn load_model(config: &BackgroundRemovalConfig) -> Result<ModelSession, Tran
             message: format!("failed to load model: {e}"),
         })?;
 
-    // RMBG-1.4 uses 1024x1024 input
+    // BiRefNet uses 1024x1024 input
     let input_size = (1024, 1024);
 
     Ok(ModelSession {
@@ -241,8 +249,8 @@ mod tests {
         let config = BackgroundRemovalConfig::default();
         assert!(config.use_gpu);
         assert_eq!(config.gpu_device_id, 0);
-        assert!((config.confidence_threshold - 0.5).abs() < f32::EPSILON);
-        assert!(config.model_path.to_string_lossy().contains("rmbg-1.4.onnx"));
+        assert!((config.confidence_threshold - 0.1).abs() < f32::EPSILON);
+        assert!(config.model_path.to_string_lossy().contains("birefnet-general.onnx"));
     }
 
     #[test]
