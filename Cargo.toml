@@ -184,3 +184,11 @@ tempfile = "3.10"
 [[bench]]
 name = "transforms"
 harness = false
+
+[[example]]
+name = "remove_background"
+required-features = ["background-removal"]
+
+[[example]]
+name = "generate_test_audio"
+required-features = ["audio-encode"]
