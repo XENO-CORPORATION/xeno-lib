@@ -1,4 +1,4 @@
-//! Container format demuxing for MP4, MKV, WebM, and IVF.
+//! Container format demuxing for MP4, MKV, WebM, AVI, and IVF.
 //!
 //! This module provides demuxers that extract raw video/audio packets from
 //! container formats. The packets can then be fed to hardware decoders (NVDEC)
@@ -8,6 +8,7 @@
 //!
 //! - **MP4** (.mp4, .m4v, .mov) - via the `mp4` crate
 //! - **MKV/WebM** (.mkv, .webm) - via the `matroska` crate
+//! - **AVI** (.avi) - metadata-oriented demuxing (built-in)
 //! - **IVF** (.ivf) - raw VP8/VP9/AV1 bitstream container (built-in)
 //!
 //! # Example
@@ -33,6 +34,7 @@ mod mp4_demux;
 #[cfg(feature = "matroska")]
 mod mkv_demux;
 
+mod avi_demux;
 mod ivf_demux;
 
 use crate::video::{ContainerFormat, VideoCodec, AudioCodec, VideoError};
@@ -225,14 +227,14 @@ pub fn open_container<P: AsRef<Path>>(path: P) -> Result<Box<dyn Demuxer>, Video
             })
         }
         ContainerType::Avi => {
-            Err(VideoError::Container {
-                message: "AVI demuxing not yet implemented.".to_string(),
-            })
+            let demuxer = avi_demux::AviDemuxer::open(path)?;
+            Ok(Box::new(demuxer))
         }
     }
 }
 
 // Re-exports
+pub use avi_demux::AviDemuxer;
 pub use ivf_demux::IvfDemuxer;
 
 #[cfg(feature = "mp4")]

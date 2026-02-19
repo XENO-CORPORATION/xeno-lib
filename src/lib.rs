@@ -303,8 +303,12 @@ pub use crate::audio::{
     },
 };
 
-#[cfg(feature = "video")]
+#[cfg(all(feature = "video", feature = "av-mux", feature = "video-encode-h264"))]
 pub use crate::video::edit::{
     trim_video, cut_video, concat_videos, change_speed,
+};
+
+#[cfg(feature = "video")]
+pub use crate::video::edit::{
     TrimConfig, ConcatConfig, SpeedConfig, VideoSegment,
 };

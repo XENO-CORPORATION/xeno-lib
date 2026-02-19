@@ -19,17 +19,21 @@
 //! trim_video("input.mp4", "output.mp4", config)?;
 //! ```
 
-use std::fs::File;
-use std::io::{BufWriter, Seek, Write};
 use std::path::Path;
 
 use crate::video::{VideoError, VideoResult};
 
-#[cfg(feature = "video-encode-h264")]
+#[cfg(all(feature = "video", feature = "av-mux", feature = "video-encode-h264"))]
+use std::fs::File;
+#[cfg(all(feature = "video", feature = "av-mux", feature = "video-encode-h264"))]
+use std::io::{BufWriter, Seek, Write};
+#[cfg(all(feature = "video", feature = "av-mux", feature = "video-encode-h264"))]
 use crate::video::mux::{AvMuxConfig, AvMuxer, AudioConfig, VideoConfig};
 
 #[cfg(feature = "video")]
-use crate::video::container::{open_container, Demuxer, Packet, VideoStreamInfo, AudioStreamInfo};
+use crate::video::container::{open_container, Packet};
+#[cfg(all(feature = "video", feature = "av-mux", feature = "video-encode-h264"))]
+use crate::video::container::{AudioStreamInfo, VideoStreamInfo};
 
 /// Configuration for video trimming.
 #[derive(Debug, Clone)]
@@ -568,17 +572,19 @@ pub fn extract_frame_time<P: AsRef<Path>>(
 // Helper functions
 
 /// Convert time in seconds to PTS.
+#[cfg(any(test, all(feature = "video", feature = "av-mux", feature = "video-encode-h264")))]
 fn time_to_pts(time: f64, timebase_num: u32, timebase_den: u32) -> i64 {
     ((time * timebase_den as f64) / timebase_num as f64) as i64
 }
 
 /// Convert PTS to time in seconds.
+#[cfg(any(test, all(feature = "video", feature = "av-mux", feature = "video-encode-h264")))]
 fn pts_to_time(pts: i64, timebase_num: u32, timebase_den: u32) -> f64 {
     (pts as f64 * timebase_num as f64) / timebase_den as f64
 }
 
 /// Create mux configuration from stream info.
-#[cfg(feature = "av-mux")]
+#[cfg(all(feature = "video", feature = "av-mux", feature = "video-encode-h264"))]
 fn create_mux_config(
     video_info: &VideoStreamInfo,
     audio_info: Option<&AudioStreamInfo>,
@@ -616,6 +622,7 @@ fn create_mux_config(
 }
 
 /// Parse SPS and PPS from extra data.
+#[cfg(all(feature = "video", feature = "av-mux", feature = "video-encode-h264"))]
 fn parse_sps_pps(extra_data: &[u8]) -> (Vec<u8>, Vec<u8>) {
     // Simple extraction - assumes concatenated SPS+PPS
     // Real implementation would parse avcC box format
