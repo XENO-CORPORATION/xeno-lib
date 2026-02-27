@@ -13,12 +13,15 @@
 //! # Quick Start
 //!
 //! ```rust,no_run
-//! use xeno_lib::audio_separate::{separate, load_separator, SeparationConfig, AudioStem};
+//! use xeno_lib::audio_separate::{
+//!     separate, load_separator, SeparationConfig, AudioStem, StereoAudio
+//! };
 //!
 //! let config = SeparationConfig::default().vocals_only();
 //! let mut separator = load_separator(&config)?;
 //!
-//! // Load stereo audio at 44.1kHz
+//! // 1 second of silent stereo audio at 44.1kHz (interleaved LR samples)
+//! let samples = vec![0.0f32; 44_100 * 2];
 //! let audio = StereoAudio::from_interleaved(&samples);
 //! let separated = separate(&audio, 44100, &mut separator)?;
 //!

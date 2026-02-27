@@ -312,10 +312,16 @@ xeno-lib = { version = "0.1", features = ["full"] }
 | `video` | Video types, container detection, editing |
 | `video-encode` | AV1 encoding via rav1e |
 | `video-encode-h264` | H.264 encoding via OpenH264 |
-| `video-decode` | Video decoding (dav1d, NVDEC) |
+| `video-decode` | Video decoding via NVDEC (NVIDIA GPU) |
+| `video-decode-sw` | Software AV1 decoding via dav1d |
 | `audio` | Audio decoding + effects + visualization |
 | `audio-encode` | WAV/FLAC/Opus encoding |
 | `text-overlay` | Text rendering on images |
+
+Notes for `video-decode-sw`:
+- Currently supported on non-Windows targets.
+- Linux: install `libdav1d-dev` and `pkg-config` (or set `SYSTEM_DEPS_DAV1D_BUILD_INTERNAL=always`).
+- `cargo test --all-features` on supported targets will fail until those prerequisites are available.
 
 ### Feature Bundles
 

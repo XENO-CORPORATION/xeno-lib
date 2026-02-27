@@ -254,13 +254,13 @@ pub use crate::style_transfer::{
 
 #[cfg(feature = "ocr")]
 pub use crate::ocr::{
-    extract_text, extract_text_quick, load_ocr_model, visualize_ocr,
+    extract_text, extract_text_simple as extract_text_quick, load_ocr_model, visualize_ocr,
     OcrConfig, OcrModel, OcrResult, OcrSession, TextBlock, TextBox,
 };
 
 #[cfg(feature = "pose")]
 pub use crate::pose::{
-    detect_pose, detect_poses, load_pose_model, visualize_pose,
+    detect_pose, detect_pose as detect_poses, load_pose_model, visualize_pose,
     BodyKeypoint, DetectedPose, PoseConfig, PoseModel, PoseSession,
 };
 
@@ -292,9 +292,9 @@ pub use crate::document::{
 pub use crate::audio::{
     // Audio effects
     effects::{
-        reverb, equalizer, pitch_shift, delay, distortion, chorus, flanger, noise_gate,
-        ReverbConfig, EqConfig, EqBand, FilterType, PitchShiftConfig, DelayConfig,
-        DistortionConfig, ChorusConfig, FlangerConfig, GateConfig, ReverbPreset,
+        reverb, equalizer, pitch_shift, delay, distortion, chorus, flanger, gate as noise_gate,
+        ReverbConfig, EqConfig, EqBand, EqFilterType as FilterType, PitchShiftConfig, DelayConfig,
+        DistortionConfig, ChorusConfig, FlangerConfig, GateConfig, ReverbConfig as ReverbPreset,
     },
     // Audio visualization
     visualization::{
@@ -303,8 +303,12 @@ pub use crate::audio::{
     },
 };
 
-#[cfg(feature = "video")]
+#[cfg(all(feature = "video", feature = "av-mux", feature = "video-encode-h264"))]
 pub use crate::video::edit::{
     trim_video, cut_video, concat_videos, change_speed,
+};
+
+#[cfg(feature = "video")]
+pub use crate::video::edit::{
     TrimConfig, ConcatConfig, SpeedConfig, VideoSegment,
 };

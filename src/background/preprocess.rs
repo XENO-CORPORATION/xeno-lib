@@ -19,7 +19,7 @@ const STD: [f32; 3] = [0.229, 0.224, 0.225];
 ///
 /// 1. Resize to target dimensions (bilinear interpolation)
 /// 2. Convert to RGB f32 in range [0, 1]
-/// 3. Normalize using RMBG mean/std values
+/// 3. Normalize using BiRefNet/ImageNet mean/std values
 /// 4. Transpose from HWC to CHW format
 /// 5. Add batch dimension
 ///
@@ -148,12 +148,12 @@ mod tests {
         let img = create_test_rgb_image(64, 64);
         let tensor = image_to_tensor(&img, (64, 64)).unwrap();
 
-        // After normalization to [0, 1] range
+        // After ImageNet normalization, values are expected outside [0, 1].
         let min_val = tensor.iter().copied().fold(f32::INFINITY, f32::min);
         let max_val = tensor.iter().copied().fold(f32::NEG_INFINITY, f32::max);
 
-        assert!(min_val >= -0.01, "min value {} is out of range", min_val);
-        assert!(max_val <= 1.01, "max value {} is out of range", max_val);
+        assert!(min_val >= -2.2, "min value {} is out of range", min_val);
+        assert!(max_val <= 2.7, "max value {} is out of range", max_val);
     }
 
     #[test]

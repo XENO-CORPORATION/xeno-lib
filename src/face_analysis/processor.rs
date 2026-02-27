@@ -14,7 +14,7 @@ pub fn analyze_face(
     image: &DynamicImage,
     session: &mut FaceAnalyzerSession,
 ) -> Result<FaceAnalysisResult, TransformError> {
-    let config = session.config();
+    let config = session.config().clone();
     let (w, h) = (image.width(), image.height());
 
     // Resize to model input size (typically 224x224 for these models)
@@ -70,7 +70,7 @@ pub fn analyze_faces(
     face_regions: &[(u32, u32, u32, u32)], // (x, y, width, height)
     session: &mut FaceAnalyzerSession,
 ) -> Result<Vec<FaceAnalysisResult>, TransformError> {
-    let config = session.config();
+    let config = session.config().clone();
     let mut results = Vec::new();
 
     for &(x, y, w, h) in face_regions {

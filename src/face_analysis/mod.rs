@@ -115,8 +115,8 @@ pub struct FaceAnalysisResult {
 impl FaceAnalysisResult {
     /// Get age range string.
     pub fn age_range(&self) -> String {
-        let lower = ((self.age - 3.0).max(0.0) / 5.0).floor() * 5.0;
-        let upper = ((self.age + 3.0) / 5.0).ceil() * 5.0;
+        let lower = (self.age.max(0.0) / 5.0).floor() * 5.0;
+        let upper = lower + 5.0;
         format!("{}-{}", lower as u32, upper as u32)
     }
 

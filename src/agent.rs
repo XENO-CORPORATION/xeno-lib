@@ -442,6 +442,8 @@ pub struct Capabilities {
 impl Capabilities {
     /// Query current capabilities.
     pub fn query() -> Self {
+        // Mutated conditionally based on compile-time features.
+        #[allow(unused_mut)]
         let mut caps = Self {
             version: env!("CARGO_PKG_VERSION").to_string(),
             encode_codecs: Vec::new(),
@@ -501,7 +503,7 @@ impl Capabilities {
         }
 
         // Software AV1 decoder
-        #[cfg(feature = "video-decode-sw")]
+        #[cfg(all(feature = "video-decode-sw", not(target_os = "windows")))]
         {
             caps.sw_av1_decode = true;
         }

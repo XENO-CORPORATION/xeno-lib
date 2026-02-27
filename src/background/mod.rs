@@ -11,11 +11,11 @@
 //!
 //! // Load the model once (reuse for multiple images)
 //! let config = BackgroundRemovalConfig::default();
-//! let session = load_model(&config)?;
+//! let mut session = load_model(&config)?;
 //!
 //! // Process an image
 //! let input = image::open("photo.jpg")?;
-//! let output = remove_background(&input, &session)?;
+//! let output = remove_background(&input, &mut session)?;
 //! output.save("photo_nobg.png")?;
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
@@ -58,9 +58,9 @@ use crate::error::TransformError;
 /// ```rust,no_run
 /// use xeno_lib::background::{remove_background, load_model, BackgroundRemovalConfig};
 ///
-/// let session = load_model(&BackgroundRemovalConfig::default())?;
+/// let mut session = load_model(&BackgroundRemovalConfig::default())?;
 /// let input = image::open("portrait.jpg")?;
-/// let result = remove_background(&input, &session)?;
+/// let result = remove_background(&input, &mut session)?;
 /// result.save("portrait_nobg.png")?;
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```

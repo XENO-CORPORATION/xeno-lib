@@ -26,7 +26,7 @@ impl FaceAnalyzerSession {
 
     /// Run age estimation.
     pub fn estimate_age(&mut self, input: &Array4<f32>) -> Result<(f32, f32), TransformError> {
-        let session = self.age_session.as_ref().ok_or_else(|| {
+        let session = self.age_session.as_mut().ok_or_else(|| {
             TransformError::InferenceFailed {
                 message: "Age model not loaded".to_string(),
             }
@@ -68,7 +68,7 @@ impl FaceAnalyzerSession {
 
     /// Run gender classification.
     pub fn classify_gender(&mut self, input: &Array4<f32>) -> Result<(f32, f32), TransformError> {
-        let session = self.gender_session.as_ref().ok_or_else(|| {
+        let session = self.gender_session.as_mut().ok_or_else(|| {
             TransformError::InferenceFailed {
                 message: "Gender model not loaded".to_string(),
             }
@@ -110,7 +110,7 @@ impl FaceAnalyzerSession {
 
     /// Run emotion recognition.
     pub fn recognize_emotion(&mut self, input: &Array4<f32>) -> Result<Vec<f32>, TransformError> {
-        let session = self.emotion_session.as_ref().ok_or_else(|| {
+        let session = self.emotion_session.as_mut().ok_or_else(|| {
             TransformError::InferenceFailed {
                 message: "Emotion model not loaded".to_string(),
             }

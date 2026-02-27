@@ -66,6 +66,10 @@ pub enum VideoError {
     #[error("invalid configuration: {message}")]
     Config { message: String },
 
+    /// Invalid user input or arguments.
+    #[error("invalid input: {message}")]
+    InvalidInput { message: String },
+
     /// Decoding error.
     #[error("decoding failed: {message}")]
     Decoding { message: String },
