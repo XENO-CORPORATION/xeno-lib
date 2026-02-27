@@ -29,10 +29,10 @@ openh264 = { version = "0.9", optional = true, default-features = false, feature
 libloading = { version = "0.8", optional = true }
 
 # Software video decoding
-# Note: Requires system dav1d library on Windows (vcpkg or manual build)
+# Note: On supported platforms, requires system dav1d + pkg-config
+# (or internal source build via SYSTEM_DEPS_DAV1D_BUILD_INTERNAL=always)
 # On Linux: apt install libdav1d-dev
 # The dav1d crate provides safe Rust bindings
-dav1d = { version = "0.10", optional = true }  # AV1 software decoder
 
 # Audio decoding - Pure Rust via Symphonia
 # Supports: MP3, AAC, FLAC, Vorbis, ALAC, WAV, AIFF, MKV, MP4, OGG, WebM
@@ -53,6 +53,9 @@ matroska = { version = "0.29", optional = true }  # MKV/WebM demuxing
 # Text overlay / font rendering (pure Rust)
 ab_glyph = { version = "0.2", optional = true }   # Font loading and glyph rasterization
 
+[target.'cfg(not(target_os = "windows"))'.dependencies]
+dav1d = { version = "0.10", optional = true }  # AV1 software decoder
+
 [features]
 default = []
 fast-resize = ["fast_image_resize"]
@@ -65,7 +68,7 @@ video-encode = ["video", "rav1e", "mp4"]
 video-encode-h264 = ["video", "openh264", "mp4"]  # H.264 encoding via OpenH264
 video-encode-full = ["video-encode", "video-encode-h264"]  # All encoders
 video-decode = ["video", "libloading"]
-video-decode-sw = ["video", "dav1d"]  # Software AV1 decoder (CPU)
+video-decode-sw = ["video", "dep:dav1d"]  # Software AV1 decoder (CPU, non-Windows)
 video-full = ["video-encode-full", "video-decode", "video-decode-sw"]
 
 # Audio features (Phase 2)

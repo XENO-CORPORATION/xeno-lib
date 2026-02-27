@@ -11,7 +11,7 @@ pub fn stylize(
     image: &DynamicImage,
     session: &mut StyleSession,
 ) -> Result<DynamicImage, TransformError> {
-    let config = session.config();
+    let config = session.config().clone();
     let max_dim = config.max_dimension;
     let (orig_w, orig_h) = (image.width(), image.height());
 
@@ -53,7 +53,8 @@ pub fn stylize(
     // Apply strength blending
     let strength = config.strength;
     if strength < 1.0 {
-        styled = blend_images(&resized, &styled, strength);
+        let styled_dynamic = DynamicImage::ImageRgba8(styled);
+        styled = blend_images(&resized, &styled_dynamic, strength);
     }
 
     // Resize back to original dimensions if needed

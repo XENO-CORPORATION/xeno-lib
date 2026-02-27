@@ -503,7 +503,7 @@ impl Capabilities {
         }
 
         // Software AV1 decoder
-        #[cfg(feature = "video-decode-sw")]
+        #[cfg(all(feature = "video-decode-sw", not(target_os = "windows")))]
         {
             caps.sw_av1_decode = true;
         }

@@ -319,9 +319,9 @@ xeno-lib = { version = "0.1", features = ["full"] }
 | `text-overlay` | Text rendering on images |
 
 Notes for `video-decode-sw`:
-- Linux: install `libdav1d-dev` and `pkg-config`.
-- Windows: install `dav1d` (e.g. via vcpkg) and make sure `pkg-config` can find `dav1d.pc`.
-- `cargo test --all-features` will fail until these system dependencies are available.
+- Currently supported on non-Windows targets.
+- Linux: install `libdav1d-dev` and `pkg-config` (or set `SYSTEM_DEPS_DAV1D_BUILD_INTERNAL=always`).
+- `cargo test --all-features` on supported targets will fail until those prerequisites are available.
 
 ### Feature Bundles
 

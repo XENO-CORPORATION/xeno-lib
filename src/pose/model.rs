@@ -104,27 +104,32 @@ impl PoseSession {
             }
         })?;
 
-        let outputs = self
-            .session
-            .run(ort::inputs![tensor_ref])
-            .map_err(|e| TransformError::InferenceFailed {
-                message: format!("Pose estimation failed: {e}"),
+        let (shape, data) = {
+            let outputs = self
+                .session
+                .run(ort::inputs![tensor_ref])
+                .map_err(|e| TransformError::InferenceFailed {
+                    message: format!("Pose estimation failed: {e}"),
+                })?;
+
+            let output_tensor = outputs.iter().next().ok_or_else(|| {
+                TransformError::InferenceFailed {
+                    message: "No output tensor found".to_string(),
+                }
             })?;
 
-        let output_tensor = outputs.iter().next().ok_or_else(|| {
-            TransformError::InferenceFailed {
-                message: "No output tensor found".to_string(),
-            }
-        })?;
+            let (shape, data) = output_tensor
+                .1
+                .try_extract_tensor::<f32>()
+                .map_err(|e| TransformError::InferenceFailed {
+                    message: format!("Failed to extract output: {e}"),
+                })?;
 
-        let (shape, data) = output_tensor
-            .1
-            .try_extract_tensor::<f32>()
-            .map_err(|e| TransformError::InferenceFailed {
-                message: format!("Failed to extract output: {e}"),
-            })?;
+            let shape: Vec<i64> = shape.iter().copied().collect();
+            let data: Vec<f32> = data.iter().copied().collect();
+            (shape, data)
+        };
 
-        let data: Vec<f32> = data.iter().copied().collect();
         self.parse_output(&data, &shape)
     }
 

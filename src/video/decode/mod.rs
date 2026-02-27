@@ -38,13 +38,13 @@
 #[cfg(feature = "video-decode")]
 mod nvdec;
 
-#[cfg(feature = "video-decode-sw")]
+#[cfg(all(feature = "video-decode-sw", not(target_os = "windows")))]
 mod dav1d_decoder;
 
 #[cfg(feature = "video-decode")]
 pub use nvdec::*;
 
-#[cfg(feature = "video-decode-sw")]
+#[cfg(all(feature = "video-decode-sw", not(target_os = "windows")))]
 pub use dav1d_decoder::Dav1dDecoder;
 
 use crate::video::VideoError;
@@ -330,7 +330,7 @@ pub fn best_decoder_for(codec: DecodeCodec) -> DecoderBackend {
     }
 
     // Fall back to software decoder for AV1
-    #[cfg(feature = "video-decode-sw")]
+    #[cfg(all(feature = "video-decode-sw", not(target_os = "windows")))]
     if codec == DecodeCodec::Av1 && Dav1dDecoder::is_available() {
         return DecoderBackend::Dav1d;
     }
@@ -339,7 +339,11 @@ pub fn best_decoder_for(codec: DecodeCodec) -> DecoderBackend {
 }
 
 /// Get the best available decoder backend for a codec (software only version).
-#[cfg(all(feature = "video-decode-sw", not(feature = "video-decode")))]
+#[cfg(all(
+    feature = "video-decode-sw",
+    not(feature = "video-decode"),
+    not(target_os = "windows")
+))]
 pub fn best_decoder_for(codec: DecodeCodec) -> DecoderBackend {
     // Software decoder for AV1
     if codec == DecodeCodec::Av1 && Dav1dDecoder::is_available() {
@@ -388,14 +392,14 @@ pub fn decode_ivf<P: AsRef<std::path::Path>>(path: P) -> Result<Vec<DecodedFrame
             let mut decoder = NvDecoder::new(config)?;
             decoder.decode_ivf_file(path)
         }
-        #[cfg(feature = "video-decode-sw")]
+        #[cfg(all(feature = "video-decode-sw", not(target_os = "windows")))]
         DecoderBackend::Dav1d => {
             let mut decoder = Dav1dDecoder::new()?;
             decoder.decode_ivf_file(path)
         }
-        #[cfg(not(feature = "video-decode-sw"))]
+        #[cfg(not(all(feature = "video-decode-sw", not(target_os = "windows"))))]
         DecoderBackend::Dav1d => Err(VideoError::Decoding {
-            message: "dav1d software decoder not available. Enable 'video-decode-sw' feature.".to_string(),
+            message: "dav1d software decoder not available on this platform/build.".to_string(),
         }),
         DecoderBackend::None => Err(VideoError::Decoding {
             message: format!("No decoder available for {:?}. NVDEC or dav1d required.", codec),

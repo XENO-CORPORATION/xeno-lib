@@ -37,7 +37,7 @@ pub fn extract_text(
     image: &DynamicImage,
     session: &mut OcrSession,
 ) -> Result<OcrResult, TransformError> {
-    let config = session.config();
+    let config = session.config().clone();
     let (orig_w, orig_h) = (image.width(), image.height());
 
     // Resize if needed
