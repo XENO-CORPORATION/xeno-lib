@@ -17,7 +17,7 @@ mod sequence;
 pub(crate) mod utils;
 
 pub use affine::{affine_transform, shear_horizontal, shear_vertical, translate};
-pub use alignment::{align, center_on_canvas, Alignment};
+pub use alignment::{align, center_on_canvas, recenter, recenter_with_alpha_threshold, Alignment};
 pub use batch::{
     batch_transform, parallel_batch, pipeline_transform, sequence_transform, stream_transform,
     TransformPipeline,

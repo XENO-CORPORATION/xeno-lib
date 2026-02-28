@@ -1,5 +1,5 @@
 use crate::error::TransformError;
-use image::DynamicImage;
+use image::{DynamicImage, RgbaImage};
 
 /// Alignment position for placing images on canvas.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -67,4 +67,78 @@ pub fn align(
     };
 
     crate::transforms::canvas::pad(image, top, right, bottom, left, color)
+}
+
+/// Recenters visible content in a transparent image while preserving canvas size.
+///
+/// This detects non-transparent pixels (`alpha > 0`), computes their bounding box,
+/// and places that content in the center of a new transparent canvas with the same
+/// dimensions as the input.
+///
+/// For fully transparent images, this returns the original image unchanged.
+pub fn recenter(image: &DynamicImage) -> Result<DynamicImage, TransformError> {
+    recenter_with_alpha_threshold(image, 0)
+}
+
+/// Same as [`recenter`], but allows customizing the alpha threshold used to detect
+/// visible content.
+///
+/// Pixels with `alpha <= alpha_threshold` are treated as transparent.
+pub fn recenter_with_alpha_threshold(
+    image: &DynamicImage,
+    alpha_threshold: u8,
+) -> Result<DynamicImage, TransformError> {
+    if image.width() == 0 || image.height() == 0 {
+        return Err(TransformError::InvalidDimensions {
+            width: image.width(),
+            height: image.height(),
+        });
+    }
+
+    let rgba = image.to_rgba8();
+    let Some((min_x, min_y, max_x, max_y)) = alpha_bounds(&rgba, alpha_threshold) else {
+        return Ok(image.clone());
+    };
+
+    let object_width = max_x - min_x + 1;
+    let object_height = max_y - min_y + 1;
+
+    let content = image::imageops::crop_imm(&rgba, min_x, min_y, object_width, object_height).to_image();
+    let mut output = RgbaImage::new(image.width(), image.height());
+
+    let offset_x = ((image.width() - object_width) / 2) as i64;
+    let offset_y = ((image.height() - object_height) / 2) as i64;
+    image::imageops::overlay(&mut output, &content, offset_x, offset_y);
+
+    Ok(DynamicImage::ImageRgba8(output))
+}
+
+fn alpha_bounds(
+    image: &RgbaImage,
+    alpha_threshold: u8,
+) -> Option<(u32, u32, u32, u32)> {
+    let (width, height) = image.dimensions();
+    let mut min_x = width;
+    let mut min_y = height;
+    let mut max_x = 0u32;
+    let mut max_y = 0u32;
+    let mut found = false;
+
+    for y in 0..height {
+        for x in 0..width {
+            if image.get_pixel(x, y)[3] > alpha_threshold {
+                found = true;
+                min_x = min_x.min(x);
+                min_y = min_y.min(y);
+                max_x = max_x.max(x);
+                max_y = max_y.max(y);
+            }
+        }
+    }
+
+    if found {
+        Some((min_x, min_y, max_x, max_y))
+    } else {
+        None
+    }
 }
