@@ -49,6 +49,7 @@
 
 ### Image Transforms
 - Geometric: flip, rotate, crop, resize, perspective, affine
+- Subject layout: recenter transparent subjects on-canvas
 - Color: brightness, contrast, saturation, hue, gamma, exposure
 - Filters: blur, sharpen, edge detect, emboss, sepia, denoise
 - Compositing: overlay, watermark, border, frame, text overlay
@@ -502,12 +503,24 @@ xeno-edit remove-bg photo.jpg
 # Format conversion
 xeno-edit convert webp --quality 90 photo.png
 
+# Recenter transparent subject + optional resize
+xeno-edit recenter logo.png --resize 512x512
+
 # Create animated GIF
 xeno-edit gif output.gif -d 100 frame*.png
 
 # Video encoding
 xeno-edit video-encode output.mp4 -f 30 frame*.png
 ```
+
+### Command Groups
+
+- Image: `remove-bg`, `convert`, `recenter`, `image-filter`, `gif`, `awebp`, `text-overlay`
+- Video: `video-info`, `video-encode`, `h264-encode`, `video-frames`, `video-to-gif`, `video-thumbnail`, `encode-sequence`, `video-transcode`, `video-trim`, `video-concat`
+- Audio: `audio-info`, `extract-audio`, `audio-encode`
+- Agent/Automation: `capabilities`, `gpu-info`, `exec`, `template`
+
+Full CLI reference (usage, aliases, and examples): `xeno-edit/CLI_COMMANDS.md`
 
 ---
 

@@ -13,6 +13,7 @@ multi-core hardware.
 - `rotate_90`, `rotate_180`, and `rotate_270` provide optimized, allocation-minimal quarter-turn rotations.
 - `rotate` supports arbitrary angles with selectable interpolation (`Nearest` or `Bilinear`) and sensible bounds handling.
 - `crop` extracts bounded sub-regions while preserving the original pixel format.
+- `recenter` centers visible transparent-background content while preserving the original canvas size.
 - `resize_exact`, `resize_by_percent`, and helpers resize images with bilinear or nearest-neighbour sampling.
 - `grayscale`, `invert`, `adjust_brightness`, `adjust_contrast`, `adjust_saturation`, `adjust_hue`, `adjust_exposure`, and `adjust_gamma`
   provide tone and color control while respecting alpha channels.
@@ -114,7 +115,7 @@ pub use crate::transforms::{
     flip_horizontal, flip_vertical, get_background, get_interpolation, get_optimize_memory,
     get_preserve_alpha, homography, load_sequence, optimize_memory, pad, pad_to_aspect,
     pad_to_size, parallel_batch, perspective_correct, perspective_transform, pipeline_transform,
-    preserve_alpha, resize, resize_by_percent, resize_cover, resize_exact, resize_fill,
+    preserve_alpha, recenter, recenter_with_alpha_threshold, resize, resize_by_percent, resize_cover, resize_exact, resize_fill,
     resize_fit, resize_to_fit, resize_to_height, resize_to_width, rotate, rotate_90,
     rotate_90_ccw, rotate_90_cw, rotate_180, rotate_270, rotate_270_cw, rotate_bounded,
     rotate_cropped, save_sequence, scale, scale_height, scale_width, sequence_info,

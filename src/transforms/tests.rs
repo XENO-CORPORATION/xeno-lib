@@ -1,4 +1,5 @@
 use super::{
+    recenter, recenter_with_alpha_threshold,
     Interpolation, crop, flip_horizontal, flip_vertical, resize_by_percent, resize_exact,
     resize_to_fit, resize_to_height, resize_to_width, rotate, rotate_90, rotate_180, rotate_270,
     thumbnail,
@@ -192,4 +193,41 @@ fn disk_round_trip_uses_tempfile() {
 
     let reloaded = image::open(&output_path).expect("load output");
     assert_eq!(flipped.to_rgba8(), reloaded.to_rgba8());
+}
+
+#[test]
+fn recenter_transparent_content_centers_subject() {
+    let mut img = image::RgbaImage::new(10, 10);
+    // Subject starts near the left side.
+    img.put_pixel(1, 4, Rgba([255, 0, 0, 255]));
+    img.put_pixel(2, 4, Rgba([255, 0, 0, 255]));
+    img.put_pixel(1, 5, Rgba([255, 0, 0, 255]));
+    img.put_pixel(2, 5, Rgba([255, 0, 0, 255]));
+
+    let input = DynamicImage::ImageRgba8(img);
+    let centered = recenter(&input).expect("recenter");
+    let out = centered.to_rgba8();
+
+    // 2x2 subject should land centered at x=[4,5], y=[4,5] on a 10x10 canvas.
+    assert_eq!(out.get_pixel(4, 4), &Rgba([255, 0, 0, 255]));
+    assert_eq!(out.get_pixel(5, 4), &Rgba([255, 0, 0, 255]));
+    assert_eq!(out.get_pixel(4, 5), &Rgba([255, 0, 0, 255]));
+    assert_eq!(out.get_pixel(5, 5), &Rgba([255, 0, 0, 255]));
+}
+
+#[test]
+fn recenter_threshold_ignores_faint_alpha() {
+    let mut img = image::RgbaImage::new(8, 8);
+    // Faint pixel at corner should be ignored with threshold.
+    img.put_pixel(0, 0, Rgba([255, 255, 255, 4]));
+    // Real subject.
+    img.put_pixel(6, 3, Rgba([0, 255, 0, 255]));
+
+    let input = DynamicImage::ImageRgba8(img);
+    let centered = recenter_with_alpha_threshold(&input, 8).expect("recenter threshold");
+    let out = centered.to_rgba8();
+
+    // Single-pixel subject should move to the same center convention as
+    // `center_on_canvas` (floor on even-sized canvases).
+    assert_eq!(out.get_pixel(3, 3), &Rgba([0, 255, 0, 255]));
 }

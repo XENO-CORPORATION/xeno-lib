@@ -5,6 +5,7 @@
 //! ```bash
 //! xeno-edit remove-bg input.jpg output.png
 //! xeno-edit convert png image.jpg
+//! xeno-edit recenter input.png --resize 512x512
 //! xeno-edit gif output.gif frame1.png frame2.png frame3.png
 //! xeno-edit awebp output.webp frame1.png frame2.png frame3.png
 //! ```
@@ -31,6 +32,7 @@ use xeno_lib::video::decode::{
 use xeno_lib::audio::{AudioInfo, decode_file, encode_wav, encode_flac, WavConfig, FlacConfig};
 use xeno_lib::transforms::{
     flip_horizontal, flip_vertical, flip_both, rotate_90_cw, rotate_180, rotate_270_cw, crop,
+    recenter, recenter_with_alpha_threshold, resize_exact, Interpolation,
 };
 use xeno_lib::adjustments::{
     adjust_brightness, adjust_contrast, adjust_saturation, adjust_hue, adjust_gamma,
@@ -95,6 +97,24 @@ impl ImageFormat {
     }
 }
 
+/// Supported interpolation kernels for resize operations.
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum ResizeKernel {
+    /// Fast nearest-neighbor sampling
+    Nearest,
+    /// Higher-quality bilinear sampling
+    Bilinear,
+}
+
+impl ResizeKernel {
+    fn as_interpolation(self) -> Interpolation {
+        match self {
+            ResizeKernel::Nearest => Interpolation::Nearest,
+            ResizeKernel::Bilinear => Interpolation::Bilinear,
+        }
+    }
+}
+
 #[derive(Subcommand)]
 enum Commands {
     /// Remove background from an image using AI
@@ -142,6 +162,38 @@ enum Commands {
         /// JPEG quality (1-100, default: 90)
         #[arg(long, default_value = "90")]
         quality: u8,
+
+        /// Suppress output messages
+        #[arg(short, long)]
+        quiet: bool,
+    },
+
+    /// Recenter transparent subject content, optionally resize output
+    #[command(name = "recenter", alias = "rc")]
+    Recenter {
+        /// Input image path(s) - supports multiple files
+        #[arg(required = true, num_args = 1..)]
+        inputs: Vec<PathBuf>,
+
+        /// Output file path (single input only)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Output directory for batch processing
+        #[arg(short, long)]
+        output_dir: Option<PathBuf>,
+
+        /// Optional resize after recenter, format: WxH (example: 512x512)
+        #[arg(long, value_name = "WxH")]
+        resize: Option<String>,
+
+        /// Interpolation used when --resize is provided
+        #[arg(long, value_enum, default_value = "bilinear")]
+        interpolation: ResizeKernel,
+
+        /// Alpha threshold for subject detection (0-255)
+        #[arg(long, default_value = "0")]
+        alpha_threshold: u8,
 
         /// Suppress output messages
         #[arg(short, long)]
@@ -988,6 +1040,16 @@ fn main() -> Result<()> {
             quiet,
         } => cmd_convert(format, inputs, output_dir, quality, quiet),
 
+        Commands::Recenter {
+            inputs,
+            output,
+            output_dir,
+            resize,
+            interpolation,
+            alpha_threshold,
+            quiet,
+        } => cmd_recenter(inputs, output, output_dir, resize, interpolation, alpha_threshold, quiet),
+
         Commands::ImageFilter {
             inputs, output_dir, format, width, height, crop,
             brightness, contrast, saturation, hue, gamma,
@@ -1347,6 +1409,160 @@ fn cmd_convert(
 
     if fail_count > 0 && success_count == 0 {
         anyhow::bail!("All images failed to convert");
+    }
+
+    Ok(())
+}
+
+fn parse_resize_spec(spec: &str) -> Result<(u32, u32)> {
+    let normalized = spec.trim().to_ascii_lowercase();
+    let (w_str, h_str) = normalized
+        .split_once('x')
+        .ok_or_else(|| anyhow::anyhow!("Invalid resize format '{}'. Expected WxH, e.g. 512x512", spec))?;
+
+    let width: u32 = w_str
+        .trim()
+        .parse()
+        .with_context(|| format!("Invalid resize width in '{}'", spec))?;
+    let height: u32 = h_str
+        .trim()
+        .parse()
+        .with_context(|| format!("Invalid resize height in '{}'", spec))?;
+
+    if width == 0 || height == 0 {
+        anyhow::bail!("Resize dimensions must be greater than zero, got {}x{}", width, height);
+    }
+
+    Ok((width, height))
+}
+
+fn cmd_recenter(
+    inputs: Vec<PathBuf>,
+    output: Option<PathBuf>,
+    output_dir: Option<PathBuf>,
+    resize: Option<String>,
+    interpolation: ResizeKernel,
+    alpha_threshold: u8,
+    quiet: bool,
+) -> Result<()> {
+    if output.is_some() && output_dir.is_some() {
+        anyhow::bail!("Use either --output or --output-dir, not both");
+    }
+    if output.is_some() && inputs.len() > 1 {
+        anyhow::bail!("--output supports only a single input file");
+    }
+
+    let resize_dims = if let Some(spec) = resize.as_ref() {
+        Some(parse_resize_spec(spec)?)
+    } else {
+        None
+    };
+
+    if let Some(ref dir) = output_dir {
+        std::fs::create_dir_all(dir)
+            .with_context(|| format!("Failed to create output directory: {}", dir.display()))?;
+    }
+
+    let total_images = inputs.len();
+    let is_batch = total_images > 1;
+    let batch_start = Instant::now();
+    let mut success_count = 0usize;
+    let mut fail_count = 0usize;
+
+    if !quiet {
+        println!("xeno-edit recenter");
+        println!("==================");
+        if is_batch {
+            println!("Batch mode: {} images", total_images);
+        }
+        println!("Alpha threshold: {}", alpha_threshold);
+        if let Some((w, h)) = resize_dims {
+            println!("Resize: {}x{} ({:?})", w, h, interpolation);
+        }
+        println!();
+    }
+
+    for (idx, input_path) in inputs.iter().enumerate() {
+        let output_path = if let Some(ref out) = output {
+            out.clone()
+        } else {
+            let stem = input_path
+                .file_stem()
+                .unwrap_or(OsStr::new("output"))
+                .to_string_lossy();
+            let ext = input_path
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("png");
+
+            if let Some(ref dir) = output_dir {
+                dir.join(format!("{}_recentered.{}", stem, ext))
+            } else {
+                let parent = input_path.parent().unwrap_or(std::path::Path::new("."));
+                parent.join(format!("{}_recentered.{}", stem, ext))
+            }
+        };
+
+        if !quiet && is_batch {
+            print!("[{}/{}] {}... ", idx + 1, total_images, input_path.display());
+        } else if !quiet {
+            print!("Processing {}... ", input_path.display());
+        }
+
+        let result = (|| -> Result<()> {
+            let source = image::open(input_path)
+                .with_context(|| format!("Failed to open image: {}", input_path.display()))?;
+
+            let recentered = if alpha_threshold == 0 {
+                recenter(&source)?
+            } else {
+                recenter_with_alpha_threshold(&source, alpha_threshold)?
+            };
+
+            let final_image = if let Some((w, h)) = resize_dims {
+                resize_exact(&recentered, w, h, interpolation.as_interpolation())?
+            } else {
+                recentered
+            };
+
+            final_image
+                .save(&output_path)
+                .with_context(|| format!("Failed to save image: {}", output_path.display()))?;
+            Ok(())
+        })();
+
+        match result {
+            Ok(()) => {
+                success_count += 1;
+                if quiet {
+                    println!("{}", output_path.display());
+                } else {
+                    println!("-> {}", output_path.display());
+                }
+            }
+            Err(e) => {
+                fail_count += 1;
+                if !quiet {
+                    eprintln!("ERROR: {}", e);
+                } else {
+                    eprintln!("Error processing {}: {}", input_path.display(), e);
+                }
+            }
+        }
+    }
+
+    if !quiet && is_batch {
+        println!();
+        println!(
+            "Batch complete: {} succeeded, {} failed ({:.2?} total)",
+            success_count,
+            fail_count,
+            batch_start.elapsed()
+        );
+    }
+
+    if fail_count > 0 && success_count == 0 {
+        anyhow::bail!("All images failed to recenter");
     }
 
     Ok(())
