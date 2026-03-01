@@ -19,3 +19,4 @@ mp4 = "0.14"  # MP4 container parsing
 ivf = "0.1"   # IVF container parsing (for AV1 bitstreams)
 serde = { version = "1.0", features = ["derive"] }  # JSON serialization for agent API
 serde_json = "1.0"  # JSON parsing for agent API
+vtracer = "0.6.5"  # High-quality raster-to-vector (PNG/JPG/etc -> SVG)

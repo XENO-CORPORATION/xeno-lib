@@ -5,6 +5,7 @@
 //! ```bash
 //! xeno-edit remove-bg input.jpg output.png
 //! xeno-edit convert png image.jpg
+//! xeno-edit convert svg image.png --svg-preset photo
 //! xeno-edit recenter input.png --resize 512x512
 //! xeno-edit gif output.gif frame1.png frame2.png frame3.png
 //! xeno-edit awebp output.webp frame1.png frame2.png frame3.png
@@ -69,6 +70,8 @@ enum ImageFormat {
     Tiff,
     /// ICO - Windows icon format
     Ico,
+    /// SVG - vector output (powered by vtracer)
+    Svg,
 }
 
 impl ImageFormat {
@@ -81,6 +84,7 @@ impl ImageFormat {
             ImageFormat::Bmp => "bmp",
             ImageFormat::Tiff => "tiff",
             ImageFormat::Ico => "ico",
+            ImageFormat::Svg => "svg",
         }
     }
 
@@ -93,6 +97,28 @@ impl ImageFormat {
             ImageFormat::Bmp => "BMP",
             ImageFormat::Tiff => "TIFF",
             ImageFormat::Ico => "ICO",
+            ImageFormat::Svg => "SVG",
+        }
+    }
+}
+
+/// Presets for raster-to-vector SVG conversion.
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum SvgPreset {
+    /// Binary black/white tracing (logos, line art)
+    Bw,
+    /// Balanced color tracing for illustrations
+    Poster,
+    /// Highest-detail photo-oriented tracing
+    Photo,
+}
+
+impl SvgPreset {
+    fn to_vtracer(self) -> vtracer::Preset {
+        match self {
+            SvgPreset::Bw => vtracer::Preset::Bw,
+            SvgPreset::Poster => vtracer::Preset::Poster,
+            SvgPreset::Photo => vtracer::Preset::Photo,
         }
     }
 }
@@ -148,7 +174,7 @@ enum Commands {
     /// Convert image(s) to a different format
     #[command(name = "convert", alias = "cvt")]
     Convert {
-        /// Target format (png, jpeg/jpg, webp, gif, bmp, tiff/tif, ico)
+        /// Target format (png, jpeg/jpg, webp, gif, bmp, tiff/tif, ico, svg)
         format: ImageFormat,
 
         /// Input image path(s) - supports multiple files
@@ -162,6 +188,10 @@ enum Commands {
         /// JPEG quality (1-100, default: 90)
         #[arg(long, default_value = "90")]
         quality: u8,
+
+        /// SVG tracing preset used when target format is svg
+        #[arg(long, value_enum, default_value = "photo")]
+        svg_preset: SvgPreset,
 
         /// Suppress output messages
         #[arg(short, long)]
@@ -1037,8 +1067,9 @@ fn main() -> Result<()> {
             inputs,
             output_dir,
             quality,
+            svg_preset,
             quiet,
-        } => cmd_convert(format, inputs, output_dir, quality, quiet),
+        } => cmd_convert(format, inputs, output_dir, quality, svg_preset, quiet),
 
         Commands::Recenter {
             inputs,
@@ -1336,6 +1367,7 @@ fn cmd_convert(
     inputs: Vec<PathBuf>,
     output_dir: Option<PathBuf>,
     quality: u8,
+    svg_preset: SvgPreset,
     quiet: bool,
 ) -> Result<()> {
     let total_images = inputs.len();
@@ -1350,6 +1382,9 @@ fn cmd_convert(
         }
         if matches!(format, ImageFormat::Jpeg) {
             println!("JPEG quality: {}", quality);
+        }
+        if matches!(format, ImageFormat::Svg) {
+            println!("SVG preset: {:?}", svg_preset);
         }
         println!();
     }
@@ -1379,7 +1414,14 @@ fn cmd_convert(
             println!("[{}/{}] {}", idx + 1, total_images, input.display());
         }
 
-        match convert_single_image(input, &output, format, quality, quiet && !is_batch) {
+        match convert_single_image(
+            input,
+            &output,
+            format,
+            quality,
+            svg_preset,
+            quiet && !is_batch,
+        ) {
             Ok(_) => {
                 success_count += 1;
                 if quiet {
@@ -1573,12 +1615,26 @@ fn convert_single_image(
     output: &PathBuf,
     format: ImageFormat,
     quality: u8,
+    svg_preset: SvgPreset,
     quiet: bool,
 ) -> Result<()> {
     use image::codecs::jpeg::JpegEncoder;
     use image::ImageEncoder;
     use std::fs::File;
     use std::io::BufWriter;
+
+    if matches!(format, ImageFormat::Svg) {
+        if !quiet {
+            print!("Vectorizing to SVG... ");
+        }
+        let start = Instant::now();
+        convert_single_image_to_svg(input, output, svg_preset)?;
+        if !quiet {
+            println!("done ({:.0?})", start.elapsed());
+            println!();
+        }
+        return Ok(());
+    }
 
     if !quiet {
         print!("Loading... ");
@@ -1618,6 +1674,14 @@ fn convert_single_image(
     }
 
     Ok(())
+}
+
+fn convert_single_image_to_svg(input: &PathBuf, output: &PathBuf, svg_preset: SvgPreset) -> Result<()> {
+    let mut config = vtracer::Config::from_preset(svg_preset.to_vtracer());
+    // Keep two decimal places in path coordinates by default for smaller files.
+    config.path_precision = Some(2);
+
+    vtracer::convert_image_to_svg(input, output, config).map_err(|e| anyhow::anyhow!(e))
 }
 
 // ============================================================================
@@ -1992,6 +2056,9 @@ fn process_image_filter(
 
     // Save with appropriate format
     match format {
+        ImageFormat::Svg => {
+            anyhow::bail!("SVG output is only supported by `convert svg`");
+        }
         ImageFormat::Jpeg => {
             use image::codecs::jpeg::JpegEncoder;
             use image::ImageEncoder;

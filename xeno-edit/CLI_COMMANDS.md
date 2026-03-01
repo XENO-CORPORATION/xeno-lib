@@ -65,6 +65,9 @@ xeno-edit remove-bg input.png --output-dir out
 
 ```bash
 xeno-edit convert webp input.png --quality 90
+
+# High-quality PNG/JPG/etc -> SVG (vtracer)
+xeno-edit convert svg input.png --svg-preset photo
 ```
 
 ### `recenter` (`rc`)
