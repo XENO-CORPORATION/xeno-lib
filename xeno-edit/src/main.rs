@@ -5,6 +5,7 @@
 //! ```bash
 //! xeno-edit remove-bg input.jpg output.png
 //! xeno-edit convert png image.jpg
+//! xeno-edit convert svg image.png --svg-preset photo
 //! xeno-edit recenter input.png --resize 512x512
 //! xeno-edit gif output.gif frame1.png frame2.png frame3.png
 //! xeno-edit awebp output.webp frame1.png frame2.png frame3.png
@@ -41,6 +42,10 @@ use xeno_lib::adjustments::{
 use xeno_lib::filters::{gaussian_blur, unsharp_mask, sepia as apply_sepia};
 use xeno_lib::composite::watermark as apply_watermark;
 use xeno_lib::text::{TextOverlay, TextConfig, Anchor};
+use xeno_lib::vectorize::{
+    vectorize_file_to_svg, VectorizeColorMode as LibVectorizeColorMode, VectorizeConfig,
+    VectorizeHierarchy as LibVectorizeHierarchy, VectorizePreset as LibVectorizePreset,
+};
 
 #[derive(Parser)]
 #[command(name = "xeno-edit")]
@@ -69,6 +74,8 @@ enum ImageFormat {
     Tiff,
     /// ICO - Windows icon format
     Ico,
+    /// SVG - vector output (powered by vtracer)
+    Svg,
 }
 
 impl ImageFormat {
@@ -81,6 +88,7 @@ impl ImageFormat {
             ImageFormat::Bmp => "bmp",
             ImageFormat::Tiff => "tiff",
             ImageFormat::Ico => "ico",
+            ImageFormat::Svg => "svg",
         }
     }
 
@@ -93,7 +101,91 @@ impl ImageFormat {
             ImageFormat::Bmp => "BMP",
             ImageFormat::Tiff => "TIFF",
             ImageFormat::Ico => "ICO",
+            ImageFormat::Svg => "SVG",
         }
+    }
+}
+
+/// Presets for raster-to-vector SVG conversion.
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum SvgPreset {
+    /// Binary black/white tracing (logos, line art)
+    Bw,
+    /// Balanced color tracing for illustrations
+    Poster,
+    /// Highest-detail photo-oriented tracing
+    Photo,
+}
+
+impl SvgPreset {
+    fn to_lib(self) -> LibVectorizePreset {
+        match self {
+            SvgPreset::Bw => LibVectorizePreset::Bw,
+            SvgPreset::Poster => LibVectorizePreset::Poster,
+            SvgPreset::Photo => LibVectorizePreset::Photo,
+        }
+    }
+}
+
+/// Color mode override for SVG tracing.
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum SvgColorMode {
+    Color,
+    Binary,
+}
+
+impl SvgColorMode {
+    fn to_lib(self) -> LibVectorizeColorMode {
+        match self {
+            SvgColorMode::Color => LibVectorizeColorMode::Color,
+            SvgColorMode::Binary => LibVectorizeColorMode::Binary,
+        }
+    }
+}
+
+/// Hierarchy override for SVG tracing.
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum SvgHierarchy {
+    Stacked,
+    Cutout,
+}
+
+impl SvgHierarchy {
+    fn to_lib(self) -> LibVectorizeHierarchy {
+        match self {
+            SvgHierarchy::Stacked => LibVectorizeHierarchy::Stacked,
+            SvgHierarchy::Cutout => LibVectorizeHierarchy::Cutout,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct SvgConvertOptions {
+    preset: SvgPreset,
+    color_mode: Option<SvgColorMode>,
+    hierarchy: Option<SvgHierarchy>,
+    filter_speckle: Option<u32>,
+    color_precision: Option<u8>,
+    layer_difference: Option<u8>,
+    corner_threshold: Option<u16>,
+    length_threshold: Option<f64>,
+    max_iterations: Option<u32>,
+    splice_threshold: Option<u16>,
+    path_precision: Option<u32>,
+}
+
+impl SvgConvertOptions {
+    fn has_non_preset_overrides(&self) -> bool {
+        self.color_mode.is_some()
+            || self.hierarchy.is_some()
+            || self.filter_speckle.is_some()
+            || self.color_precision.is_some()
+            || self.layer_difference.is_some()
+            || self.corner_threshold.is_some()
+            || self.length_threshold.is_some()
+            || self.max_iterations.is_some()
+            || self.splice_threshold.is_some()
+            || self.path_precision.is_some()
     }
 }
 
@@ -148,7 +240,7 @@ enum Commands {
     /// Convert image(s) to a different format
     #[command(name = "convert", alias = "cvt")]
     Convert {
-        /// Target format (png, jpeg/jpg, webp, gif, bmp, tiff/tif, ico)
+        /// Target format (png, jpeg/jpg, webp, gif, bmp, tiff/tif, ico, svg)
         format: ImageFormat,
 
         /// Input image path(s) - supports multiple files
@@ -162,6 +254,50 @@ enum Commands {
         /// JPEG quality (1-100, default: 90)
         #[arg(long, default_value = "90")]
         quality: u8,
+
+        /// SVG tracing preset used when target format is svg
+        #[arg(long, value_enum, default_value = "photo")]
+        svg_preset: SvgPreset,
+
+        /// Override SVG color mode
+        #[arg(long, value_enum)]
+        svg_color_mode: Option<SvgColorMode>,
+
+        /// Override SVG path hierarchy strategy
+        #[arg(long, value_enum)]
+        svg_hierarchy: Option<SvgHierarchy>,
+
+        /// Override SVG speckle filter area in pixels
+        #[arg(long)]
+        svg_filter_speckle: Option<u32>,
+
+        /// Override SVG color precision (1-8)
+        #[arg(long)]
+        svg_color_precision: Option<u8>,
+
+        /// Override SVG layer difference threshold (0-255)
+        #[arg(long)]
+        svg_layer_difference: Option<u8>,
+
+        /// Override SVG corner threshold in degrees (0-180)
+        #[arg(long)]
+        svg_corner_threshold: Option<u16>,
+
+        /// Override SVG minimum segment length (>0)
+        #[arg(long)]
+        svg_length_threshold: Option<f64>,
+
+        /// Override SVG max fitting iterations (>0)
+        #[arg(long)]
+        svg_max_iterations: Option<u32>,
+
+        /// Override SVG splice threshold in degrees (0-180)
+        #[arg(long)]
+        svg_splice_threshold: Option<u16>,
+
+        /// Override SVG output coordinate precision
+        #[arg(long)]
+        svg_path_precision: Option<u32>,
 
         /// Suppress output messages
         #[arg(short, long)]
@@ -1037,8 +1173,34 @@ fn main() -> Result<()> {
             inputs,
             output_dir,
             quality,
+            svg_preset,
+            svg_color_mode,
+            svg_hierarchy,
+            svg_filter_speckle,
+            svg_color_precision,
+            svg_layer_difference,
+            svg_corner_threshold,
+            svg_length_threshold,
+            svg_max_iterations,
+            svg_splice_threshold,
+            svg_path_precision,
             quiet,
-        } => cmd_convert(format, inputs, output_dir, quality, quiet),
+        } => {
+            let svg_options = SvgConvertOptions {
+                preset: svg_preset,
+                color_mode: svg_color_mode,
+                hierarchy: svg_hierarchy,
+                filter_speckle: svg_filter_speckle,
+                color_precision: svg_color_precision,
+                layer_difference: svg_layer_difference,
+                corner_threshold: svg_corner_threshold,
+                length_threshold: svg_length_threshold,
+                max_iterations: svg_max_iterations,
+                splice_threshold: svg_splice_threshold,
+                path_precision: svg_path_precision,
+            };
+            cmd_convert(format, inputs, output_dir, quality, svg_options, quiet)
+        }
 
         Commands::Recenter {
             inputs,
@@ -1336,10 +1498,22 @@ fn cmd_convert(
     inputs: Vec<PathBuf>,
     output_dir: Option<PathBuf>,
     quality: u8,
+    svg_options: SvgConvertOptions,
     quiet: bool,
 ) -> Result<()> {
     let total_images = inputs.len();
     let is_batch = total_images > 1;
+
+    if !matches!(format, ImageFormat::Svg) && svg_options.has_non_preset_overrides() {
+        anyhow::bail!(
+            "SVG-specific options (--svg-*) can only be used when target format is svg"
+        );
+    }
+
+    if let Some(ref dir) = output_dir {
+        std::fs::create_dir_all(dir)
+            .with_context(|| format!("Failed to create output directory: {}", dir.display()))?;
+    }
 
     if !quiet {
         println!("xeno-edit convert");
@@ -1350,6 +1524,15 @@ fn cmd_convert(
         }
         if matches!(format, ImageFormat::Jpeg) {
             println!("JPEG quality: {}", quality);
+        }
+        if matches!(format, ImageFormat::Svg) {
+            println!("SVG preset: {:?}", svg_options.preset);
+            if let Some(color_mode) = svg_options.color_mode {
+                println!("SVG color mode: {:?}", color_mode);
+            }
+            if let Some(hierarchy) = svg_options.hierarchy {
+                println!("SVG hierarchy: {:?}", hierarchy);
+            }
         }
         println!();
     }
@@ -1379,7 +1562,14 @@ fn cmd_convert(
             println!("[{}/{}] {}", idx + 1, total_images, input.display());
         }
 
-        match convert_single_image(input, &output, format, quality, quiet && !is_batch) {
+        match convert_single_image(
+            input,
+            &output,
+            format,
+            quality,
+            &svg_options,
+            quiet && !is_batch,
+        ) {
             Ok(_) => {
                 success_count += 1;
                 if quiet {
@@ -1573,12 +1763,26 @@ fn convert_single_image(
     output: &PathBuf,
     format: ImageFormat,
     quality: u8,
+    svg_options: &SvgConvertOptions,
     quiet: bool,
 ) -> Result<()> {
     use image::codecs::jpeg::JpegEncoder;
     use image::ImageEncoder;
     use std::fs::File;
     use std::io::BufWriter;
+
+    if matches!(format, ImageFormat::Svg) {
+        if !quiet {
+            print!("Vectorizing to SVG... ");
+        }
+        let start = Instant::now();
+        convert_single_image_to_svg(input, output, svg_options)?;
+        if !quiet {
+            println!("done ({:.0?})", start.elapsed());
+            println!();
+        }
+        return Ok(());
+    }
 
     if !quiet {
         print!("Loading... ");
@@ -1618,6 +1822,26 @@ fn convert_single_image(
     }
 
     Ok(())
+}
+
+fn convert_single_image_to_svg(
+    input: &PathBuf,
+    output: &PathBuf,
+    svg_options: &SvgConvertOptions,
+) -> Result<()> {
+    let mut config = VectorizeConfig::from_preset(svg_options.preset.to_lib());
+    config.color_mode = svg_options.color_mode.map(SvgColorMode::to_lib);
+    config.hierarchical = svg_options.hierarchy.map(SvgHierarchy::to_lib);
+    config.filter_speckle = svg_options.filter_speckle;
+    config.color_precision = svg_options.color_precision;
+    config.layer_difference = svg_options.layer_difference;
+    config.corner_threshold = svg_options.corner_threshold;
+    config.length_threshold = svg_options.length_threshold;
+    config.max_iterations = svg_options.max_iterations;
+    config.splice_threshold = svg_options.splice_threshold;
+    config.path_precision = svg_options.path_precision.or(Some(2));
+
+    vectorize_file_to_svg(input, output, &config).map_err(|e| anyhow::anyhow!(e))
 }
 
 // ============================================================================
@@ -1992,6 +2216,9 @@ fn process_image_filter(
 
     // Save with appropriate format
     match format {
+        ImageFormat::Svg => {
+            anyhow::bail!("SVG output is only supported by `convert svg`");
+        }
         ImageFormat::Jpeg => {
             use image::codecs::jpeg::JpegEncoder;
             use image::ImageEncoder;

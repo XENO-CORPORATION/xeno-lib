@@ -50,6 +50,7 @@
 ### Image Transforms
 - Geometric: flip, rotate, crop, resize, perspective, affine
 - Subject layout: recenter transparent subjects on-canvas
+- Vectorization: convert PNG/JPG/etc into SVG paths
 - Color: brightness, contrast, saturation, hue, gamma, exposure
 - Filters: blur, sharpen, edge detect, emboss, sepia, denoise
 - Compositing: overlay, watermark, border, frame, text overlay
@@ -502,6 +503,9 @@ xeno-edit remove-bg photo.jpg
 
 # Format conversion
 xeno-edit convert webp --quality 90 photo.png
+
+# High-quality raster to SVG (vtracer backend)
+xeno-edit convert svg input.png --svg-preset photo
 
 # Recenter transparent subject + optional resize
 xeno-edit recenter logo.png --resize 512x512
