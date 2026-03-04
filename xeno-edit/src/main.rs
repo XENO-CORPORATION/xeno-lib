@@ -5,7 +5,7 @@
 //! ```bash
 //! xeno-edit remove-bg input.jpg output.png
 //! xeno-edit convert png image.jpg
-//! xeno-edit convert svg image.png --svg-preset photo
+//! xeno-edit convert svg --svg-preset photo image.png
 //! xeno-edit recenter input.png --resize 512x512
 //! xeno-edit gif output.gif frame1.png frame2.png frame3.png
 //! xeno-edit awebp output.webp frame1.png frame2.png frame3.png
@@ -1156,6 +1156,22 @@ enum Commands {
 }
 
 fn main() -> Result<()> {
+    // The command graph is very large; parse/dispatch on a larger stack to avoid
+    // Windows main-thread stack overflows in clap internals.
+    const CLI_STACK_SIZE: usize = 64 * 1024 * 1024;
+    let handle = std::thread::Builder::new()
+        .name("xeno-edit-cli".to_string())
+        .stack_size(CLI_STACK_SIZE)
+        .spawn(run_cli)
+        .context("Failed to start CLI thread")?;
+
+    match handle.join() {
+        Ok(result) => result,
+        Err(_) => anyhow::bail!("CLI thread panicked"),
+    }
+}
+
+fn run_cli() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {

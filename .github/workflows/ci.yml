@@ -1,0 +1,136 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-all-features:
+    name: Check (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm pkg-config libdav1d-dev
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install nasm pkg-config dav1d
+
+      - name: Install NASM (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install nasm --yes --no-progress
+          where.exe nasm
+
+      - name: Check xeno-lib all features (deny warnings)
+        env:
+          RUSTFLAGS: -D warnings
+        run: cargo check --all-features --locked
+
+      - name: Check xeno-edit (deny warnings)
+        env:
+          RUSTFLAGS: -D warnings
+        run: cargo check --manifest-path xeno-edit/Cargo.toml --locked
+
+  test-linux:
+    name: Tests (Ubuntu)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm pkg-config libdav1d-dev
+
+      - name: Run default tests
+        run: cargo test --locked
+
+      - name: Build all-feature tests
+        run: cargo test --all-features --no-run --locked
+
+  benchmark-regression:
+    name: Competitive Benchmarks (Ubuntu)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install benchmark dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm pkg-config libdav1d-dev ffmpeg imagemagick libvips-tools
+
+      - name: Build xeno-edit (release)
+        run: cargo build --manifest-path xeno-edit/Cargo.toml --release --locked
+
+      - name: Run competitive benchmark suite
+        run: |
+          cargo run --manifest-path tools/competitive-bench/Cargo.toml --locked -- run \
+            --xeno-bin xeno-edit/target/release/xeno-edit \
+            --iterations 5 \
+            --warmup 1 \
+            --output benchmarks/competitors/results/latest.json
+
+      - name: Gate benchmark regressions
+        run: |
+          cargo run --manifest-path tools/competitive-bench/Cargo.toml --locked -- gate \
+            --current benchmarks/competitors/results/latest.json \
+            --baseline benchmarks/competitors/baseline.json \
+            --max-time-regression-pct 12 \
+            --max-psnr-drop 0.15 \
+            --max-ssim-drop 0.0015 \
+            --max-slowdown-vs-best-pct 10 \
+            --max-p95-slowdown-vs-best-pct 12 \
+            --max-psnr-gap-vs-best 0.20 \
+            --max-ssim-gap-vs-best 0.0015 \
+            --min-psnr 35 \
+            --min-ssim 0.97 \
+            --require-competitors \
+            --require-all-competitors
+
+      - name: Generate Linux baseline candidate
+        run: |
+          cargo run --manifest-path tools/competitive-bench/Cargo.toml --locked -- update-baseline \
+            --from benchmarks/competitors/results/latest.json \
+            --to benchmarks/competitors/results/linux-baseline-candidate.json
+
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: competitive-benchmark-report
+          path: |
+            benchmarks/competitors/results/latest.json
+            benchmarks/competitors/results/linux-baseline-candidate.json

@@ -67,10 +67,10 @@ xeno-edit remove-bg input.png --output-dir out
 xeno-edit convert webp input.png --quality 90
 
 # High-quality PNG/JPG/etc -> SVG (vtracer)
-xeno-edit convert svg input.png --svg-preset photo
+xeno-edit convert svg --svg-preset photo input.png
 
 # Fine-tune SVG tracing quality
-xeno-edit convert svg input.png \
+xeno-edit convert svg \
   --svg-preset photo \
   --svg-color-mode color \
   --svg-filter-speckle 8 \
@@ -80,7 +80,8 @@ xeno-edit convert svg input.png \
   --svg-length-threshold 3.0 \
   --svg-max-iterations 12 \
   --svg-splice-threshold 45 \
-  --svg-path-precision 2
+  --svg-path-precision 2 \
+  input.png
 ```
 
 ### `recenter` (`rc`)

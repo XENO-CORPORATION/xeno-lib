@@ -1,6 +1,6 @@
 //! Subtitle format parsers.
 
-use super::{SubtitleCue, SubtitleFormat, Subtitles, parse_srt_time, parse_ass_time};
+use super::{parse_ass_time, parse_srt_time, SubtitleCue, SubtitleFormat, Subtitles};
 use crate::error::TransformError;
 
 /// Parse SRT subtitle file content.
@@ -9,7 +9,10 @@ pub fn parse_srt(content: &str) -> Result<Subtitles, TransformError> {
     subtitles.format = SubtitleFormat::Srt;
 
     let content = content.trim_start_matches('\u{feff}'); // Remove BOM
-    let blocks: Vec<&str> = content.split("\n\n").filter(|b| !b.trim().is_empty()).collect();
+    let blocks: Vec<&str> = content
+        .split("\n\n")
+        .filter(|b| !b.trim().is_empty())
+        .collect();
 
     for block in blocks {
         let lines: Vec<&str> = block.lines().collect();
@@ -56,7 +59,10 @@ pub fn parse_vtt(content: &str) -> Result<Subtitles, TransformError> {
         content.to_string()
     };
 
-    let blocks: Vec<&str> = content.split("\n\n").filter(|b| !b.trim().is_empty()).collect();
+    let blocks: Vec<&str> = content
+        .split("\n\n")
+        .filter(|b| !b.trim().is_empty())
+        .collect();
 
     let mut index = 0u32;
     for block in blocks {
@@ -157,10 +163,18 @@ pub fn parse_ass(content: &str) -> Result<Subtitles, TransformError> {
             }
 
             // Find field indices
-            let start_idx = format_fields.iter().position(|&f| f.eq_ignore_ascii_case("Start"));
-            let end_idx = format_fields.iter().position(|&f| f.eq_ignore_ascii_case("End"));
-            let text_idx = format_fields.iter().position(|&f| f.eq_ignore_ascii_case("Text"));
-            let style_idx = format_fields.iter().position(|&f| f.eq_ignore_ascii_case("Style"));
+            let start_idx = format_fields
+                .iter()
+                .position(|&f| f.eq_ignore_ascii_case("Start"));
+            let end_idx = format_fields
+                .iter()
+                .position(|&f| f.eq_ignore_ascii_case("End"));
+            let text_idx = format_fields
+                .iter()
+                .position(|&f| f.eq_ignore_ascii_case("Text"));
+            let style_idx = format_fields
+                .iter()
+                .position(|&f| f.eq_ignore_ascii_case("Style"));
 
             let start = start_idx
                 .and_then(|i| values.get(i))
@@ -174,9 +188,7 @@ pub fn parse_ass(content: &str) -> Result<Subtitles, TransformError> {
                 .and_then(|i| values.get(i))
                 .map(|s| strip_ass_tags(s))
                 .unwrap_or_default();
-            let style = style_idx
-                .and_then(|i| values.get(i))
-                .map(|s| s.to_string());
+            let style = style_idx.and_then(|i| values.get(i)).map(|s| s.to_string());
 
             index += 1;
             let mut cue = SubtitleCue::new(index, start, end, text);
@@ -229,7 +241,7 @@ fn strip_html_tags(s: &str) -> String {
 
 /// Strip VTT voice/class tags.
 fn strip_vtt_tags(s: &str) -> String {
-    let mut result = strip_html_tags(s);
+    let result = strip_html_tags(s);
 
     // Remove voice spans like <v Speaker>
     // Already handled by strip_html_tags

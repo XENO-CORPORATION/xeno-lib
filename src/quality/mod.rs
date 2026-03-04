@@ -88,7 +88,10 @@ impl QualityReport {
                     recs.push("Increase saturation or check if grayscale is intended".into());
                 }
                 QualityIssue::ColorCast(color) => {
-                    recs.push(format!("Apply white balance correction ({} cast detected)", color));
+                    recs.push(format!(
+                        "Apply white balance correction ({} cast detected)",
+                        color
+                    ));
                 }
                 QualityIssue::LowResolution => {
                     recs.push("Use a higher resolution source or apply AI upscaling".into());
@@ -271,8 +274,8 @@ pub fn assess_quality(image: &DynamicImage, config: &QualityConfig) -> QualityRe
     let metrics = calculate_metrics(&gray, &rgb);
 
     // Calculate individual scores
-    let sharpness = calculate_sharpness(&gray, &metrics);
-    let noise_level = calculate_noise(&gray, &metrics);
+    let sharpness = calculate_sharpness(&metrics);
+    let noise_level = calculate_noise(&gray);
     let exposure = calculate_exposure(&metrics);
     let contrast = calculate_contrast(&metrics);
     let (saturation, color_distribution) = calculate_color_metrics(&rgb);
@@ -319,19 +322,22 @@ pub fn assess_quality(image: &DynamicImage, config: &QualityConfig) -> QualityRe
     let exposure_score = 100.0 - (exposure - 50.0).abs() * 2.0;
     let noise_score = 100.0 - noise_level;
 
-    let overall_score = (
-        sharpness * config.sharpness_weight +
-        noise_score * config.noise_weight +
-        exposure_score.max(0.0) * config.exposure_weight +
-        contrast * config.contrast_weight +
-        color_distribution * config.color_weight
-    ).clamp(0.0, 100.0);
+    let overall_score = (sharpness * config.sharpness_weight
+        + noise_score * config.noise_weight
+        + exposure_score.max(0.0) * config.exposure_weight
+        + contrast * config.contrast_weight
+        + color_distribution * config.color_weight)
+        .clamp(0.0, 100.0);
 
     let grade = QualityGrade::from_score(overall_score);
 
     // Calculate dynamic range
     let min_val = metrics.histogram.iter().position(|&x| x > 0).unwrap_or(0) as f32;
-    let max_val = metrics.histogram.iter().rposition(|&x| x > 0).unwrap_or(255) as f32;
+    let max_val = metrics
+        .histogram
+        .iter()
+        .rposition(|&x| x > 0)
+        .unwrap_or(255) as f32;
     let dynamic_range = (max_val - min_val) / 255.0;
 
     QualityReport {
@@ -363,7 +369,10 @@ pub fn rank_images(images: &[DynamicImage], config: &QualityConfig) -> Vec<(usiz
 }
 
 /// Find the best quality image from a set.
-pub fn find_best_image(images: &[DynamicImage], config: &QualityConfig) -> Option<(usize, QualityReport)> {
+pub fn find_best_image(
+    images: &[DynamicImage],
+    config: &QualityConfig,
+) -> Option<(usize, QualityReport)> {
     rank_images(images, config).into_iter().next()
 }
 
@@ -511,7 +520,7 @@ fn calculate_edge_density(gray: &image::GrayImage) -> f64 {
     }
 }
 
-fn calculate_sharpness(gray: &image::GrayImage, metrics: &QualityMetrics) -> f32 {
+fn calculate_sharpness(metrics: &QualityMetrics) -> f32 {
     // Normalize Laplacian variance to 0-100 score
     // Higher variance = sharper image
     let variance = metrics.laplacian_variance;
@@ -530,15 +539,13 @@ fn calculate_sharpness(gray: &image::GrayImage, metrics: &QualityMetrics) -> f32
     (score as f32).clamp(0.0, 100.0)
 }
 
-fn calculate_noise(gray: &image::GrayImage, metrics: &QualityMetrics) -> f32 {
+fn calculate_noise(gray: &image::GrayImage) -> f32 {
     // Estimate noise using high-frequency content analysis
     let (width, height) = (gray.width() as i32, gray.height() as i32);
 
     // Calculate local variance in smooth regions
     let block_size = 8;
     let mut min_variance = f64::MAX;
-    let mut block_count = 0;
-    let mut total_variance = 0.0f64;
 
     for by in (0..height - block_size).step_by(block_size as usize) {
         for bx in (0..width - block_size).step_by(block_size as usize) {
@@ -560,8 +567,6 @@ fn calculate_noise(gray: &image::GrayImage, metrics: &QualityMetrics) -> f32 {
             if variance < min_variance {
                 min_variance = variance;
             }
-            total_variance += variance;
-            block_count += 1;
         }
     }
 
@@ -666,26 +671,40 @@ fn calculate_color_metrics(rgb: &image::RgbImage) -> (f32, f32) {
 }
 
 fn detect_color_cast(color_hist: &ColorHistogram) -> Option<String> {
-    let r_mean: f64 = color_hist.red.iter().enumerate()
+    let r_mean: f64 = color_hist
+        .red
+        .iter()
+        .enumerate()
         .map(|(i, &c)| i as f64 * c as f64)
-        .sum::<f64>() / color_hist.red.iter().sum::<u32>().max(1) as f64;
+        .sum::<f64>()
+        / color_hist.red.iter().sum::<u32>().max(1) as f64;
 
-    let g_mean: f64 = color_hist.green.iter().enumerate()
+    let g_mean: f64 = color_hist
+        .green
+        .iter()
+        .enumerate()
         .map(|(i, &c)| i as f64 * c as f64)
-        .sum::<f64>() / color_hist.green.iter().sum::<u32>().max(1) as f64;
+        .sum::<f64>()
+        / color_hist.green.iter().sum::<u32>().max(1) as f64;
 
-    let b_mean: f64 = color_hist.blue.iter().enumerate()
+    let b_mean: f64 = color_hist
+        .blue
+        .iter()
+        .enumerate()
         .map(|(i, &c)| i as f64 * c as f64)
-        .sum::<f64>() / color_hist.blue.iter().sum::<u32>().max(1) as f64;
+        .sum::<f64>()
+        / color_hist.blue.iter().sum::<u32>().max(1) as f64;
 
     let avg = (r_mean + g_mean + b_mean) / 3.0;
     let threshold = 15.0;
 
     if r_mean - avg > threshold && r_mean - g_mean > threshold && r_mean - b_mean > threshold {
         Some("red".into())
-    } else if g_mean - avg > threshold && g_mean - r_mean > threshold && g_mean - b_mean > threshold {
+    } else if g_mean - avg > threshold && g_mean - r_mean > threshold && g_mean - b_mean > threshold
+    {
         Some("green".into())
-    } else if b_mean - avg > threshold && b_mean - r_mean > threshold && b_mean - g_mean > threshold {
+    } else if b_mean - avg > threshold && b_mean - r_mean > threshold && b_mean - g_mean > threshold
+    {
         Some("blue".into())
     } else if r_mean - b_mean > threshold && g_mean - b_mean > threshold {
         Some("yellow".into())
@@ -805,7 +824,7 @@ mod tests {
 
     #[test]
     fn test_recommendations() {
-        let mut report = QualityReport {
+        let report = QualityReport {
             overall_score: 40.0,
             grade: QualityGrade::Poor,
             sharpness: 30.0,

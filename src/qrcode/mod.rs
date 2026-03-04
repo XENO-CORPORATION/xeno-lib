@@ -49,7 +49,7 @@ impl Default for QrConfig {
             size: 256,
             error_correction: ErrorCorrection::Medium,
             quiet_zone: 4,
-            foreground: [0, 0, 0, 255],     // Black
+            foreground: [0, 0, 0, 255],       // Black
             background: [255, 255, 255, 255], // White
         }
     }
@@ -141,11 +141,7 @@ pub fn generate_qr(content: &str, config: &QrConfig) -> Result<DynamicImage, QrE
     let module_size = config.size / total_modules as u32;
     let actual_size = module_size * total_modules as u32;
 
-    let mut img = RgbaImage::from_pixel(
-        actual_size,
-        actual_size,
-        Rgba(config.background),
-    );
+    let mut img = RgbaImage::from_pixel(actual_size, actual_size, Rgba(config.background));
 
     let quiet = config.quiet_zone as usize;
 
@@ -424,10 +420,7 @@ fn check_finder_ratio(runs: &[(usize, usize, bool)]) -> bool {
         && (ratios[4] / unit - 1.0).abs() < tolerance
 }
 
-fn decode_qr_data(
-    _binary: &[Vec<bool>],
-    _patterns: &[(usize, usize)],
-) -> Result<String, QrError> {
+fn decode_qr_data(_binary: &[Vec<bool>], _patterns: &[(usize, usize)]) -> Result<String, QrError> {
     // Simplified - real implementation would:
     // 1. Find alignment pattern
     // 2. Sample data modules
@@ -469,7 +462,9 @@ fn encode_code128(content: &str) -> Result<Vec<bool>, QrError> {
     let mut bars = Vec::new();
 
     // Start code B
-    bars.extend_from_slice(&[true, true, false, true, false, false, true, false, false, false, true, false]);
+    bars.extend_from_slice(&[
+        true, true, false, true, false, false, true, false, false, false, true, false,
+    ]);
 
     for c in content.chars() {
         let pattern = get_code128_pattern(c)?;
@@ -477,7 +472,9 @@ fn encode_code128(content: &str) -> Result<Vec<bool>, QrError> {
     }
 
     // Stop pattern
-    bars.extend_from_slice(&[true, true, false, false, false, true, true, true, false, true, false, true, true]);
+    bars.extend_from_slice(&[
+        true, true, false, false, false, true, true, true, false, true, false, true, true,
+    ]);
 
     Ok(bars)
 }
@@ -485,10 +482,18 @@ fn encode_code128(content: &str) -> Result<Vec<bool>, QrError> {
 fn get_code128_pattern(c: char) -> Result<[bool; 11], QrError> {
     // Simplified - just a few patterns
     let pattern = match c {
-        '0' => [true, true, false, true, true, false, false, true, true, false, false],
-        '1' => [true, true, false, false, true, true, false, true, true, false, false],
-        'A' => [true, false, true, false, false, true, true, false, false, true, false],
-        _ => [true, false, true, false, true, false, false, true, true, false, false],
+        '0' => [
+            true, true, false, true, true, false, false, true, true, false, false,
+        ],
+        '1' => [
+            true, true, false, false, true, true, false, true, true, false, false,
+        ],
+        'A' => [
+            true, false, true, false, false, true, true, false, false, true, false,
+        ],
+        _ => [
+            true, false, true, false, true, false, false, true, true, false, false,
+        ],
     };
     Ok(pattern)
 }
@@ -573,12 +578,10 @@ mod tests {
 
     #[test]
     fn test_threshold_calculation() {
-        let img = GrayImage::from_fn(10, 10, |x, _| {
-            Luma([if x < 5 { 0 } else { 255 }])
-        });
+        let img = GrayImage::from_fn(10, 10, |x, _| Luma([if x < 5 { 0 } else { 255 }]));
         let threshold = calculate_threshold(&img);
         // Otsu's method should find a threshold between 0 and 255
         // For bimodal distribution (0 and 255), it could return any value that separates them
-        assert!(threshold <= 255);
+        assert_ne!(threshold, 255);
     }
 }

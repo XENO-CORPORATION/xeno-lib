@@ -1,11 +1,11 @@
 //! Face analysis processing logic.
 
-use image::{DynamicImage, imageops::FilterType};
+use image::{imageops::FilterType, DynamicImage};
 use ndarray::Array4;
 
-use crate::error::TransformError;
-use super::{Emotion, FaceAnalysisResult, Gender};
 use super::model::FaceAnalyzerSession;
+use super::{Emotion, FaceAnalysisResult, Gender};
+use crate::error::TransformError;
 
 /// Analyze faces in an image.
 ///
@@ -103,11 +103,8 @@ pub fn analyze_and_annotate(
 }
 
 /// Visualize analysis results on image.
-pub fn visualize_analysis(
-    image: &DynamicImage,
-    results: &[FaceAnalysisResult],
-) -> DynamicImage {
-    use image::{Rgba, RgbaImage};
+pub fn visualize_analysis(image: &DynamicImage, results: &[FaceAnalysisResult]) -> DynamicImage {
+    use image::Rgba;
 
     let mut rgba = image.to_rgba8();
 
@@ -121,12 +118,14 @@ pub fn visualize_analysis(
         // Draw label background
         let label = format!(
             "{}y {:?} {:?}",
-            result.age as u32,
-            result.gender,
-            result.emotion
+            result.age as u32, result.gender, result.emotion
         );
         let label_height = 20u32;
-        let label_y = if y >= label_height { y - label_height } else { y + h };
+        let label_y = if y >= label_height {
+            y - label_height
+        } else {
+            y + h
+        };
 
         // Simple label background
         for dy in 0..label_height {
