@@ -1,11 +1,11 @@
 //! Pose estimation processing logic.
 
-use image::{DynamicImage, Rgba, RgbaImage, imageops::FilterType};
+use image::{imageops::FilterType, DynamicImage, Rgba, RgbaImage};
 use ndarray::Array4;
 
-use crate::error::TransformError;
-use super::{BodyKeypoint, SKELETON_CONNECTIONS};
 use super::model::{DetectedPose, Keypoint, PoseSession};
+use super::{BodyKeypoint, SKELETON_CONNECTIONS};
+use crate::error::TransformError;
 
 /// Detect poses in an image.
 pub fn detect_pose(
@@ -13,7 +13,6 @@ pub fn detect_pose(
     session: &mut PoseSession,
 ) -> Result<Vec<DetectedPose>, TransformError> {
     let (input_w, input_h) = session.input_size();
-    let (orig_w, orig_h) = (image.width(), image.height());
 
     // Resize to model input size
     let resized = image.resize_exact(input_w, input_h, FilterType::Lanczos3);
@@ -38,22 +37,19 @@ pub fn detect_pose(
 }
 
 /// Visualize detected poses on an image.
-pub fn visualize_pose(
-    image: &DynamicImage,
-    poses: &[DetectedPose],
-) -> DynamicImage {
+pub fn visualize_pose(image: &DynamicImage, poses: &[DetectedPose]) -> DynamicImage {
     let mut rgba = image.to_rgba8();
     let (width, height) = (rgba.width(), rgba.height());
     let threshold = 0.3;
 
     // Colors for different people
     let colors = [
-        Rgba([255, 0, 0, 255]),    // Red
-        Rgba([0, 255, 0, 255]),    // Green
-        Rgba([0, 0, 255, 255]),    // Blue
-        Rgba([255, 255, 0, 255]),  // Yellow
-        Rgba([255, 0, 255, 255]),  // Magenta
-        Rgba([0, 255, 255, 255]),  // Cyan
+        Rgba([255, 0, 0, 255]),   // Red
+        Rgba([0, 255, 0, 255]),   // Green
+        Rgba([0, 0, 255, 255]),   // Blue
+        Rgba([255, 255, 0, 255]), // Yellow
+        Rgba([255, 0, 255, 255]), // Magenta
+        Rgba([0, 255, 255, 255]), // Cyan
     ];
 
     for (i, pose) in poses.iter().enumerate() {
@@ -115,8 +111,22 @@ pub fn visualize_pose_styled(
                     // Draw thick line
                     for t in 0..line_thickness {
                         let offset = t as i32 - (line_thickness / 2) as i32;
-                        draw_line(&mut rgba, x1 as i32 + offset, y1 as i32, x2 as i32 + offset, y2 as i32, color);
-                        draw_line(&mut rgba, x1 as i32, y1 as i32 + offset, x2 as i32, y2 as i32 + offset, color);
+                        draw_line(
+                            &mut rgba,
+                            x1 as i32 + offset,
+                            y1 as i32,
+                            x2 as i32 + offset,
+                            y2 as i32,
+                            color,
+                        );
+                        draw_line(
+                            &mut rgba,
+                            x1 as i32,
+                            y1 as i32 + offset,
+                            x2 as i32,
+                            y2 as i32 + offset,
+                            color,
+                        );
                     }
                 }
             }
@@ -282,7 +292,9 @@ fn calculate_facing(pose: &DetectedPose, threshold: f32) -> BodyFacing {
                 let right_eye = pose.get(BodyKeypoint::RightEye);
 
                 if left_eye.map(|e| e.confidence >= threshold).unwrap_or(false)
-                    && right_eye.map(|e| e.confidence >= threshold).unwrap_or(false)
+                    && right_eye
+                        .map(|e| e.confidence >= threshold)
+                        .unwrap_or(false)
                 {
                     BodyFacing::Front
                 } else {
@@ -354,9 +366,21 @@ mod tests {
     #[test]
     fn test_calculate_angle() {
         // 90 degree angle
-        let p1 = Keypoint { x: 0.0, y: 0.0, confidence: 1.0 };
-        let p2 = Keypoint { x: 0.0, y: 1.0, confidence: 1.0 };
-        let p3 = Keypoint { x: 1.0, y: 1.0, confidence: 1.0 };
+        let p1 = Keypoint {
+            x: 0.0,
+            y: 0.0,
+            confidence: 1.0,
+        };
+        let p2 = Keypoint {
+            x: 0.0,
+            y: 1.0,
+            confidence: 1.0,
+        };
+        let p3 = Keypoint {
+            x: 1.0,
+            y: 1.0,
+            confidence: 1.0,
+        };
 
         let angle = calculate_angle(Some(&p1), Some(&p2), Some(&p3), 0.5).unwrap();
         assert!((angle - 90.0).abs() < 1.0);
@@ -366,13 +390,41 @@ mod tests {
     fn test_body_facing() {
         let pose = DetectedPose {
             keypoints: vec![
-                Keypoint { x: 0.5, y: 0.3, confidence: 0.9 }, // nose
-                Keypoint { x: 0.45, y: 0.35, confidence: 0.9 }, // left eye
-                Keypoint { x: 0.55, y: 0.35, confidence: 0.9 }, // right eye
-                Keypoint { x: 0.4, y: 0.4, confidence: 0.9 }, // left ear
-                Keypoint { x: 0.6, y: 0.4, confidence: 0.9 }, // right ear
-                Keypoint { x: 0.35, y: 0.5, confidence: 0.9 }, // left shoulder
-                Keypoint { x: 0.65, y: 0.5, confidence: 0.9 }, // right shoulder
+                Keypoint {
+                    x: 0.5,
+                    y: 0.3,
+                    confidence: 0.9,
+                }, // nose
+                Keypoint {
+                    x: 0.45,
+                    y: 0.35,
+                    confidence: 0.9,
+                }, // left eye
+                Keypoint {
+                    x: 0.55,
+                    y: 0.35,
+                    confidence: 0.9,
+                }, // right eye
+                Keypoint {
+                    x: 0.4,
+                    y: 0.4,
+                    confidence: 0.9,
+                }, // left ear
+                Keypoint {
+                    x: 0.6,
+                    y: 0.4,
+                    confidence: 0.9,
+                }, // right ear
+                Keypoint {
+                    x: 0.35,
+                    y: 0.5,
+                    confidence: 0.9,
+                }, // left shoulder
+                Keypoint {
+                    x: 0.65,
+                    y: 0.5,
+                    confidence: 0.9,
+                }, // right shoulder
             ],
             confidence: 0.9,
             bbox: None,
@@ -386,9 +438,11 @@ mod tests {
     fn test_visualize_pose() {
         let img = DynamicImage::new_rgba8(640, 480);
         let poses = vec![DetectedPose {
-            keypoints: vec![
-                Keypoint { x: 0.5, y: 0.3, confidence: 0.9 },
-            ],
+            keypoints: vec![Keypoint {
+                x: 0.5,
+                y: 0.3,
+                confidence: 0.9,
+            }],
             confidence: 0.9,
             bbox: None,
         }];

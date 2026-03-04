@@ -24,11 +24,7 @@ use std::path::Path;
 use crate::video::{VideoError, VideoResult};
 
 #[cfg(all(feature = "video", feature = "av-mux", feature = "video-encode-h264"))]
-use std::fs::File;
-#[cfg(all(feature = "video", feature = "av-mux", feature = "video-encode-h264"))]
-use std::io::{BufWriter, Seek, Write};
-#[cfg(all(feature = "video", feature = "av-mux", feature = "video-encode-h264"))]
-use crate::video::mux::{AvMuxConfig, AvMuxer, AudioConfig, VideoConfig};
+use crate::video::mux::{AudioConfig, AvMuxConfig, AvMuxer, VideoConfig};
 
 #[cfg(feature = "video")]
 use crate::video::container::{open_container, Packet};
@@ -196,17 +192,16 @@ impl VideoSegment {
 ///
 /// Number of frames written.
 #[cfg(all(feature = "video", feature = "av-mux", feature = "video-encode-h264"))]
-pub fn trim_video<P: AsRef<Path>>(
-    input: P,
-    output: P,
-    config: TrimConfig,
-) -> VideoResult<u64> {
+pub fn trim_video<P: AsRef<Path>>(input: P, output: P, config: TrimConfig) -> VideoResult<u64> {
     let mut demuxer = open_container(input.as_ref())?;
 
     // Get stream info
-    let video_info = demuxer.video_info().cloned().ok_or_else(|| VideoError::Container {
-        message: "No video stream found".to_string(),
-    })?;
+    let video_info = demuxer
+        .video_info()
+        .cloned()
+        .ok_or_else(|| VideoError::Container {
+            message: "No video stream found".to_string(),
+        })?;
 
     let audio_info = demuxer.audio_info().cloned();
 
@@ -214,8 +209,16 @@ pub fn trim_video<P: AsRef<Path>>(
     demuxer.seek(config.start_time)?;
 
     // Calculate time bounds
-    let start_pts = time_to_pts(config.start_time, video_info.timebase_num, video_info.timebase_den);
-    let end_pts = time_to_pts(config.end_time, video_info.timebase_num, video_info.timebase_den);
+    let start_pts = time_to_pts(
+        config.start_time,
+        video_info.timebase_num,
+        video_info.timebase_den,
+    );
+    let end_pts = time_to_pts(
+        config.end_time,
+        video_info.timebase_num,
+        video_info.timebase_den,
+    );
 
     // Create output muxer
     let mux_config = create_mux_config(&video_info, audio_info.as_ref())?;
@@ -240,9 +243,6 @@ pub fn trim_video<P: AsRef<Path>>(
             break;
         }
 
-        // Adjust PTS relative to segment start
-        let adjusted_pts = packet.pts - start_pts;
-
         // Write packet
         muxer.write_video_sample(&packet.data, packet.is_keyframe)?;
         frames_written += 1;
@@ -258,11 +258,8 @@ pub fn trim_video<P: AsRef<Path>>(
             1,
             audio_info.as_ref().unwrap().sample_rate,
         );
-        let audio_end_pts = time_to_pts(
-            config.end_time,
-            1,
-            audio_info.as_ref().unwrap().sample_rate,
-        );
+        let audio_end_pts =
+            time_to_pts(config.end_time, 1, audio_info.as_ref().unwrap().sample_rate);
 
         while let Some(packet) = demuxer.next_audio_packet()? {
             if packet.pts < audio_start_pts {
@@ -292,13 +289,14 @@ pub fn cut_video<P: AsRef<Path>>(
 ) -> VideoResult<u64> {
     let mut demuxer = open_container(input.as_ref())?;
 
-    let video_info = demuxer.video_info().cloned().ok_or_else(|| VideoError::Container {
-        message: "No video stream found".to_string(),
-    })?;
+    let video_info = demuxer
+        .video_info()
+        .cloned()
+        .ok_or_else(|| VideoError::Container {
+            message: "No video stream found".to_string(),
+        })?;
 
     let audio_info = demuxer.audio_info().cloned();
-    let duration = video_info.duration.unwrap_or(f64::MAX);
-
     // Calculate PTS values
     let cut_start_pts = time_to_pts(cut_start, video_info.timebase_num, video_info.timebase_den);
     let cut_end_pts = time_to_pts(cut_end, video_info.timebase_num, video_info.timebase_den);
@@ -308,7 +306,6 @@ pub fn cut_video<P: AsRef<Path>>(
     let mut muxer = AvMuxer::new(output.as_ref(), mux_config)?;
 
     let mut frames_written = 0u64;
-    let mut offset_pts = 0i64;
     let mut in_cut_region = false;
 
     // First pass: copy packets before cut region
@@ -316,7 +313,6 @@ pub fn cut_video<P: AsRef<Path>>(
         if packet.pts >= cut_start_pts && !in_cut_region {
             // Entering cut region
             in_cut_region = true;
-            offset_pts = cut_end_pts - cut_start_pts;
             continue;
         }
 
@@ -356,7 +352,7 @@ pub fn cut_video<P: AsRef<Path>>(
 pub fn concat_videos<P: AsRef<Path>>(
     inputs: &[P],
     output: P,
-    config: ConcatConfig,
+    _config: ConcatConfig,
 ) -> VideoResult<u64> {
     if inputs.is_empty() {
         return Err(VideoError::InvalidInput {
@@ -366,9 +362,12 @@ pub fn concat_videos<P: AsRef<Path>>(
 
     // Open first input to get format info
     let first_demuxer = open_container(inputs[0].as_ref())?;
-    let video_info = first_demuxer.video_info().cloned().ok_or_else(|| VideoError::Container {
-        message: "No video stream in first input".to_string(),
-    })?;
+    let video_info = first_demuxer
+        .video_info()
+        .cloned()
+        .ok_or_else(|| VideoError::Container {
+            message: "No video stream in first input".to_string(),
+        })?;
     let audio_info = first_demuxer.audio_info().cloned();
     drop(first_demuxer);
 
@@ -403,10 +402,7 @@ pub fn concat_videos<P: AsRef<Path>>(
 
 /// Concatenate video segments (portions of files) into one.
 #[cfg(all(feature = "video", feature = "av-mux", feature = "video-encode-h264"))]
-pub fn concat_segments(
-    segments: &[VideoSegment],
-    output: &Path,
-) -> VideoResult<u64> {
+pub fn concat_segments(segments: &[VideoSegment], output: &Path) -> VideoResult<u64> {
     if segments.is_empty() {
         return Err(VideoError::InvalidInput {
             message: "No segments provided".to_string(),
@@ -415,9 +411,12 @@ pub fn concat_segments(
 
     // Open first segment to get format info
     let first_demuxer = open_container(&segments[0].source)?;
-    let video_info = first_demuxer.video_info().cloned().ok_or_else(|| VideoError::Container {
-        message: "No video stream in first segment".to_string(),
-    })?;
+    let video_info = first_demuxer
+        .video_info()
+        .cloned()
+        .ok_or_else(|| VideoError::Container {
+            message: "No video stream in first segment".to_string(),
+        })?;
     let audio_info = first_demuxer.audio_info().cloned();
     drop(first_demuxer);
 
@@ -429,15 +428,20 @@ pub fn concat_segments(
 
     for segment in segments {
         let mut demuxer = open_container(&segment.source)?;
-        let seg_info = demuxer.video_info().cloned().ok_or_else(|| VideoError::Container {
-            message: format!("No video stream in segment: {}", segment.source),
-        })?;
+        let seg_info = demuxer
+            .video_info()
+            .cloned()
+            .ok_or_else(|| VideoError::Container {
+                message: format!("No video stream in segment: {}", segment.source),
+            })?;
 
         // Seek to segment start
         demuxer.seek(segment.start)?;
 
         let start_pts = time_to_pts(segment.start, seg_info.timebase_num, seg_info.timebase_den);
-        let end_pts = segment.end.map(|e| time_to_pts(e, seg_info.timebase_num, seg_info.timebase_den));
+        let end_pts = segment
+            .end
+            .map(|e| time_to_pts(e, seg_info.timebase_num, seg_info.timebase_den));
 
         let mut found_keyframe = false;
 
@@ -469,16 +473,15 @@ pub fn concat_segments(
 
 /// Change video playback speed.
 #[cfg(all(feature = "video", feature = "av-mux", feature = "video-encode-h264"))]
-pub fn change_speed<P: AsRef<Path>>(
-    input: P,
-    output: P,
-    config: SpeedConfig,
-) -> VideoResult<u64> {
+pub fn change_speed<P: AsRef<Path>>(input: P, output: P, config: SpeedConfig) -> VideoResult<u64> {
     let mut demuxer = open_container(input.as_ref())?;
 
-    let video_info = demuxer.video_info().cloned().ok_or_else(|| VideoError::Container {
-        message: "No video stream found".to_string(),
-    })?;
+    let video_info = demuxer
+        .video_info()
+        .cloned()
+        .ok_or_else(|| VideoError::Container {
+            message: "No video stream found".to_string(),
+        })?;
 
     // Modify frame rate for speed change
     let new_frame_rate = video_info.frame_rate.unwrap_or(30.0) * config.speed;
@@ -550,10 +553,7 @@ pub fn get_frame_count<P: AsRef<Path>>(input: P) -> VideoResult<u64> {
 
 /// Extract a single frame at a specific time.
 #[cfg(feature = "video")]
-pub fn extract_frame_time<P: AsRef<Path>>(
-    input: P,
-    time: f64,
-) -> VideoResult<Packet> {
+pub fn extract_frame_time<P: AsRef<Path>>(input: P, time: f64) -> VideoResult<Packet> {
     let mut demuxer = open_container(input.as_ref())?;
     demuxer.seek(time)?;
 
@@ -572,13 +572,16 @@ pub fn extract_frame_time<P: AsRef<Path>>(
 // Helper functions
 
 /// Convert time in seconds to PTS.
-#[cfg(any(test, all(feature = "video", feature = "av-mux", feature = "video-encode-h264")))]
+#[cfg(any(
+    test,
+    all(feature = "video", feature = "av-mux", feature = "video-encode-h264")
+))]
 fn time_to_pts(time: f64, timebase_num: u32, timebase_den: u32) -> i64 {
     ((time * timebase_den as f64) / timebase_num as f64) as i64
 }
 
 /// Convert PTS to time in seconds.
-#[cfg(any(test, all(feature = "video", feature = "av-mux", feature = "video-encode-h264")))]
+#[cfg(test)]
 fn pts_to_time(pts: i64, timebase_num: u32, timebase_den: u32) -> f64 {
     (pts as f64 * timebase_num as f64) / timebase_den as f64
 }

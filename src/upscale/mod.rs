@@ -120,10 +120,7 @@ pub fn upscale_batch(
     images: &[DynamicImage],
     session: &mut UpscalerSession,
 ) -> Result<Vec<DynamicImage>, TransformError> {
-    images
-        .iter()
-        .map(|img| upscale(img, session))
-        .collect()
+    images.iter().map(|img| upscale(img, session)).collect()
 }
 
 /// Quick upscale function that loads the model and processes in one call.
@@ -153,19 +150,6 @@ pub fn upscale_quick(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use image::{Rgb, RgbImage};
-
-    fn create_test_image(width: u32, height: u32) -> DynamicImage {
-        let mut img = RgbImage::new(width, height);
-        for (x, y, pixel) in img.enumerate_pixels_mut() {
-            *pixel = Rgb([
-                ((x * 255) / width.max(1)) as u8,
-                ((y * 255) / height.max(1)) as u8,
-                128,
-            ]);
-        }
-        DynamicImage::ImageRgb8(img)
-    }
 
     #[test]
     fn test_config_default() {

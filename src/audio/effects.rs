@@ -132,7 +132,8 @@ pub fn reverb(samples: &[f32], sample_rate: u32, config: ReverbConfig) -> Vec<f3
     let mut comb_filter_store: Vec<f32> = vec![0.0; 8];
 
     // Initialize allpass filters
-    let mut allpass_buffers: Vec<Vec<f32>> = allpass_lengths.iter().map(|&l| vec![0.0; l]).collect();
+    let mut allpass_buffers: Vec<Vec<f32>> =
+        allpass_lengths.iter().map(|&l| vec![0.0; l]).collect();
     let mut allpass_indices: Vec<usize> = vec![0; 4];
 
     let feedback = config.room_size * 0.28 + 0.7;
@@ -410,8 +411,8 @@ pub fn equalizer(samples: &[f32], sample_rate: u32, config: &EqConfig) -> Vec<f3
 
         for sample in output.iter_mut() {
             let x0 = *sample;
-            let y0 = coeffs.b0 * x0 + coeffs.b1 * x1 + coeffs.b2 * x2
-                - coeffs.a1 * y1 - coeffs.a2 * y2;
+            let y0 =
+                coeffs.b0 * x0 + coeffs.b1 * x1 + coeffs.b2 * x2 - coeffs.a1 * y1 - coeffs.a2 * y2;
 
             x2 = x1;
             x1 = x0;
@@ -538,7 +539,7 @@ impl PitchShiftConfig {
 ///
 /// Note: For high-quality pitch shifting, consider using a dedicated library
 /// or the AI frame interpolation for time-stretching.
-pub fn pitch_shift(samples: &[f32], sample_rate: u32, config: PitchShiftConfig) -> Vec<f32> {
+pub fn pitch_shift(samples: &[f32], _sample_rate: u32, config: PitchShiftConfig) -> Vec<f32> {
     let ratio = 2.0f32.powf(config.semitones / 12.0);
     let new_len = (samples.len() as f32 / ratio) as usize;
 

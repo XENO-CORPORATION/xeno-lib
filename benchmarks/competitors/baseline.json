@@ -1,0 +1,257 @@
+{
+  "generated_at_unix_ms": 1772637723533,
+  "host_os": "windows",
+  "iterations": 3,
+  "warmup": 1,
+  "scenarios": [
+    {
+      "id": "resize_4k_to_1080p",
+      "description": "Resize 4000x2500 to 1920x1080",
+      "reference_path": "target/competitive-bench\\resize_4k_to_1080p\\reference.png",
+      "tools": [
+        {
+          "tool": "xeno",
+          "available": true,
+          "mean_ms": 194.95086666666668,
+          "p95_ms": 196.8491,
+          "max_rss_kb": null,
+          "quality": {
+            "psnr": 100.0,
+            "ssim": 1.0,
+            "mae": 0.0
+          },
+          "output_path": "target/competitive-bench\\resize_4k_to_1080p\\outputs\\input_filtered.png",
+          "error": null,
+          "runs_ms": [
+            192.555,
+            195.4485,
+            196.8491
+          ]
+        },
+        {
+          "tool": "ffmpeg",
+          "available": true,
+          "mean_ms": 478.3635,
+          "p95_ms": 484.5919,
+          "max_rss_kb": null,
+          "quality": {
+            "psnr": 56.57622484579801,
+            "ssim": 0.9999973535943215,
+            "mae": 0.08947434413580246
+          },
+          "output_path": "target/competitive-bench\\resize_4k_to_1080p\\outputs\\ffmpeg.png",
+          "error": null,
+          "runs_ms": [
+            484.5919,
+            471.3753,
+            479.1233
+          ]
+        },
+        {
+          "tool": "imagemagick",
+          "available": true,
+          "mean_ms": 1017.5176,
+          "p95_ms": 1037.4016,
+          "max_rss_kb": null,
+          "quality": {
+            "psnr": 52.80692717839595,
+            "ssim": 0.9999768244534369,
+            "mae": 0.34062439718364196
+          },
+          "output_path": "target/competitive-bench\\resize_4k_to_1080p\\outputs\\imagemagick.png",
+          "error": null,
+          "runs_ms": [
+            1005.2669000000001,
+            1009.8842999999999,
+            1037.4016
+          ]
+        },
+        {
+          "tool": "libvips",
+          "available": true,
+          "mean_ms": 324.6919666666667,
+          "p95_ms": 328.79209999999995,
+          "max_rss_kb": null,
+          "quality": {
+            "psnr": 58.83456355724497,
+            "ssim": 0.9999940974580115,
+            "mae": 0.08500421971450617
+          },
+          "output_path": "target/competitive-bench\\resize_4k_to_1080p\\outputs\\libvips.png",
+          "error": null,
+          "runs_ms": [
+            328.79209999999995,
+            316.93710000000004,
+            328.3467
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gaussian_blur_sigma2",
+      "description": "Gaussian blur with sigma=2.0",
+      "reference_path": "target/competitive-bench\\gaussian_blur_sigma2\\reference.png",
+      "tools": [
+        {
+          "tool": "xeno",
+          "available": true,
+          "mean_ms": 314.82379999999995,
+          "p95_ms": 319.2031,
+          "max_rss_kb": null,
+          "quality": {
+            "psnr": 63.10861219400767,
+            "ssim": 0.999999533926877,
+            "mae": 0.031784775
+          },
+          "output_path": "target/competitive-bench\\gaussian_blur_sigma2\\outputs\\input_filtered.png",
+          "error": null,
+          "runs_ms": [
+            313.8959,
+            319.2031,
+            311.37239999999997
+          ]
+        },
+        {
+          "tool": "ffmpeg",
+          "available": true,
+          "mean_ms": 756.7757666666666,
+          "p95_ms": 788.2233,
+          "max_rss_kb": null,
+          "quality": {
+            "psnr": 53.97706227152974,
+            "ssim": 0.9999818905194073,
+            "mae": 0.13740045
+          },
+          "output_path": "target/competitive-bench\\gaussian_blur_sigma2\\outputs\\ffmpeg.png",
+          "error": null,
+          "runs_ms": [
+            733.536,
+            748.568,
+            788.2233
+          ]
+        },
+        {
+          "tool": "imagemagick",
+          "available": true,
+          "mean_ms": 3310.8041333333335,
+          "p95_ms": 3334.4964,
+          "max_rss_kb": null,
+          "quality": {
+            "psnr": 52.88504715554285,
+            "ssim": 0.999976666670939,
+            "mae": 0.33463715
+          },
+          "output_path": "target/competitive-bench\\gaussian_blur_sigma2\\outputs\\imagemagick.png",
+          "error": null,
+          "runs_ms": [
+            3334.4964,
+            3293.0316,
+            3304.8844000000004
+          ]
+        },
+        {
+          "tool": "libvips",
+          "available": true,
+          "mean_ms": 512.1389666666668,
+          "p95_ms": 517.9122000000001,
+          "max_rss_kb": null,
+          "quality": {
+            "psnr": 56.801813904353594,
+            "ssim": 0.9999919434318664,
+            "mae": 0.0945134
+          },
+          "output_path": "target/competitive-bench\\gaussian_blur_sigma2\\outputs\\libvips.png",
+          "error": null,
+          "runs_ms": [
+            517.9122000000001,
+            504.72700000000003,
+            513.7777
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rotate_90",
+      "description": "Rotate 90 degrees clockwise",
+      "reference_path": "target/competitive-bench\\rotate_90\\reference.png",
+      "tools": [
+        {
+          "tool": "xeno",
+          "available": true,
+          "mean_ms": 189.86603333333332,
+          "p95_ms": 201.1832,
+          "max_rss_kb": null,
+          "quality": {
+            "psnr": 100.0,
+            "ssim": 1.0,
+            "mae": 0.0
+          },
+          "output_path": "target/competitive-bench\\rotate_90\\outputs\\input_filtered.png",
+          "error": null,
+          "runs_ms": [
+            190.8209,
+            177.594,
+            201.1832
+          ]
+        },
+        {
+          "tool": "ffmpeg",
+          "available": true,
+          "mean_ms": 740.5036333333333,
+          "p95_ms": 748.1598,
+          "max_rss_kb": null,
+          "quality": {
+            "psnr": 100.0,
+            "ssim": 1.0,
+            "mae": 0.0
+          },
+          "output_path": "target/competitive-bench\\rotate_90\\outputs\\ffmpeg.png",
+          "error": null,
+          "runs_ms": [
+            748.1598,
+            746.1687999999999,
+            727.1822999999999
+          ]
+        },
+        {
+          "tool": "imagemagick",
+          "available": true,
+          "mean_ms": 2164.3663333333334,
+          "p95_ms": 2166.5310999999997,
+          "max_rss_kb": null,
+          "quality": {
+            "psnr": 100.0,
+            "ssim": 1.0,
+            "mae": 0.0
+          },
+          "output_path": "target/competitive-bench\\rotate_90\\outputs\\imagemagick.png",
+          "error": null,
+          "runs_ms": [
+            2162.3414,
+            2164.2264999999998,
+            2166.5310999999997
+          ]
+        },
+        {
+          "tool": "libvips",
+          "available": true,
+          "mean_ms": 599.2017666666667,
+          "p95_ms": 616.6342999999999,
+          "max_rss_kb": null,
+          "quality": {
+            "psnr": 100.0,
+            "ssim": 1.0,
+            "mae": 0.0
+          },
+          "output_path": "target/competitive-bench\\rotate_90\\outputs\\libvips.png",
+          "error": null,
+          "runs_ms": [
+            616.6342999999999,
+            585.7489999999999,
+            595.222
+          ]
+        }
+      ]
+    }
+  ]
+}

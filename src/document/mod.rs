@@ -171,7 +171,6 @@ pub fn process_document(image: &DynamicImage, config: &DocumentConfig) -> Docume
 /// Detect skew angle of a document.
 pub fn detect_skew(image: &DynamicImage) -> (f64, f64) {
     let gray = image.to_luma8();
-    let (width, height) = (gray.width() as i32, gray.height() as i32);
 
     // Edge detection first
     let edges = detect_edges(&gray);
@@ -368,14 +367,37 @@ fn detect_document_corners(image: &DynamicImage) -> Option<[(u32, u32); 4]> {
     let edges = detect_edges(&gray);
 
     // Find corner regions using Harris-like detection
-    let margin = 50u32;
     let region_size = width.min(height) / 4;
 
     let corners = [
         find_corner_in_region(&edges, 0, 0, region_size, region_size, true, true),
-        find_corner_in_region(&edges, width - region_size, 0, region_size, region_size, false, true),
-        find_corner_in_region(&edges, 0, height - region_size, region_size, region_size, true, false),
-        find_corner_in_region(&edges, width - region_size, height - region_size, region_size, region_size, false, false),
+        find_corner_in_region(
+            &edges,
+            width - region_size,
+            0,
+            region_size,
+            region_size,
+            false,
+            true,
+        ),
+        find_corner_in_region(
+            &edges,
+            0,
+            height - region_size,
+            region_size,
+            region_size,
+            true,
+            false,
+        ),
+        find_corner_in_region(
+            &edges,
+            width - region_size,
+            height - region_size,
+            region_size,
+            region_size,
+            false,
+            false,
+        ),
     ];
 
     // Check if all corners were found
@@ -551,7 +573,11 @@ fn adaptive_binarize(image: &DynamicImage, block_size: u32) -> (GrayImage, u8) {
 
             // Use combination of global and local threshold
             let threshold = ((local_mean as u16 + global_threshold as u16) / 2) as u8;
-            let binary = if pixel_val > threshold.saturating_sub(5) { 255 } else { 0 };
+            let binary = if pixel_val > threshold.saturating_sub(5) {
+                255
+            } else {
+                0
+            };
 
             result.put_pixel(x, y, image::Luma([binary]));
         }
@@ -687,7 +713,7 @@ mod tests {
     #[test]
     fn test_detect_skew_uniform() {
         let img = DynamicImage::new_rgb8(100, 100);
-        let (angle, confidence) = detect_skew(&img);
+        let (_angle, confidence) = detect_skew(&img);
         // Uniform image should have low confidence
         assert!(confidence < 0.5);
     }
@@ -720,7 +746,7 @@ mod tests {
     #[test]
     fn test_adaptive_binarize() {
         let img = DynamicImage::new_rgb8(50, 50);
-        let (binary, threshold) = adaptive_binarize(&img, 15);
+        let (binary, _threshold) = adaptive_binarize(&img, 15);
         assert_eq!(binary.width(), 50);
         assert_eq!(binary.height(), 50);
     }

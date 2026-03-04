@@ -46,8 +46,8 @@ impl Default for WaveformConfig {
         Self {
             width: 800,
             height: 200,
-            color: [0, 150, 255, 255],      // Blue
-            background: [30, 30, 30, 255],   // Dark gray
+            color: [0, 150, 255, 255],     // Blue
+            background: [30, 30, 30, 255], // Dark gray
             filled: true,
             center_line_color: Some([100, 100, 100, 255]),
             samples_per_pixel: None,
@@ -70,7 +70,7 @@ impl WaveformConfig {
     /// Create a SoundCloud-like style.
     pub fn soundcloud() -> Self {
         Self {
-            color: [255, 85, 0, 255],       // Orange
+            color: [255, 85, 0, 255],         // Orange
             background: [255, 255, 255, 255], // White
             filled: true,
             center_line_color: None,
@@ -147,11 +147,7 @@ impl ColorMap {
 
 /// Render audio waveform.
 pub fn render_waveform(samples: &[f32], config: &WaveformConfig) -> DynamicImage {
-    let mut img = RgbaImage::from_pixel(
-        config.width,
-        config.height,
-        Rgba(config.background),
-    );
+    let mut img = RgbaImage::from_pixel(config.width, config.height, Rgba(config.background));
 
     if samples.is_empty() {
         return DynamicImage::ImageRgba8(img);
@@ -166,11 +162,6 @@ pub fn render_waveform(samples: &[f32], config: &WaveformConfig) -> DynamicImage
             img.put_pixel(x, center, Rgba(line_color));
         }
     }
-
-    // Calculate samples per pixel
-    let spp = config.samples_per_pixel.unwrap_or_else(|| {
-        (samples.len() / config.width as usize).max(1)
-    });
 
     // Render waveform
     for x in 0..config.width {
@@ -187,9 +178,9 @@ pub fn render_waveform(samples: &[f32], config: &WaveformConfig) -> DynamicImage
         }
 
         // Get min and max in chunk (for filled waveform)
-        let (min_val, max_val) = chunk.iter().fold((0.0f32, 0.0f32), |(min, max), &v| {
-            (min.min(v), max.max(v))
-        });
+        let (min_val, max_val) = chunk
+            .iter()
+            .fold((0.0f32, 0.0f32), |(min, max), &v| (min.min(v), max.max(v)));
 
         let y_min = (center as f32 - max_val * amplitude).round() as u32;
         let y_max = (center as f32 - min_val * amplitude).round() as u32;
@@ -212,12 +203,12 @@ pub fn render_waveform(samples: &[f32], config: &WaveformConfig) -> DynamicImage
 }
 
 /// Render audio spectrum (single frame).
-pub fn render_spectrum(samples: &[f32], sample_rate: u32, config: &SpectrumConfig) -> DynamicImage {
-    let mut img = RgbaImage::from_pixel(
-        config.width,
-        config.height,
-        Rgba(config.background),
-    );
+pub fn render_spectrum(
+    samples: &[f32],
+    _sample_rate: u32,
+    config: &SpectrumConfig,
+) -> DynamicImage {
+    let mut img = RgbaImage::from_pixel(config.width, config.height, Rgba(config.background));
 
     if samples.is_empty() {
         return DynamicImage::ImageRgba8(img);
@@ -256,7 +247,7 @@ pub fn render_spectrum(samples: &[f32], sample_rate: u32, config: &SpectrumConfi
 /// Render spectrogram (time-frequency visualization).
 pub fn render_spectrogram(
     samples: &[f32],
-    sample_rate: u32,
+    _sample_rate: u32,
     width: u32,
     height: u32,
     color_map: ColorMap,
@@ -277,7 +268,11 @@ pub fn render_spectrogram(
 
     for x in 0..width {
         let start = (x as usize * hop_size).min(samples.len().saturating_sub(fft_size));
-        let chunk = &samples[start..start.min(samples.len()).saturating_add(fft_size).min(samples.len())];
+        let chunk = &samples[start
+            ..start
+                .min(samples.len())
+                .saturating_add(fft_size)
+                .min(samples.len())];
 
         let magnitudes = compute_spectrum(chunk, fft_size);
         let bins = bin_spectrum(&magnitudes, num_bins, true);
@@ -320,9 +315,9 @@ pub fn get_waveform_points(samples: &[f32], num_points: usize) -> Vec<(f32, f32)
         }
 
         let chunk = &samples[start..end];
-        let (min, max) = chunk.iter().fold((0.0f32, 0.0f32), |(min, max), &v| {
-            (min.min(v), max.max(v))
-        });
+        let (min, max) = chunk
+            .iter()
+            .fold((0.0f32, 0.0f32), |(min, max), &v| (min.min(v), max.max(v)));
 
         points.push((min, max));
     }
@@ -378,8 +373,10 @@ fn bin_spectrum(magnitudes: &[f32], num_bins: usize, log_scale: bool) -> Vec<f32
     for (bin_idx, bin) in bins.iter_mut().enumerate() {
         let (start, end) = if log_scale {
             // Logarithmic binning
-            let log_start = (bin_idx as f32 / num_bins as f32 * (magnitudes.len() as f32).ln()).exp();
-            let log_end = ((bin_idx + 1) as f32 / num_bins as f32 * (magnitudes.len() as f32).ln()).exp();
+            let log_start =
+                (bin_idx as f32 / num_bins as f32 * (magnitudes.len() as f32).ln()).exp();
+            let log_end =
+                ((bin_idx + 1) as f32 / num_bins as f32 * (magnitudes.len() as f32).ln()).exp();
             (log_start as usize, log_end as usize)
         } else {
             // Linear binning

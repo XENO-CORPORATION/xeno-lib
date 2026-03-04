@@ -485,6 +485,27 @@ cargo bench --bench transforms
 cd xeno-edit && cargo build --release
 ```
 
+### Competitive Benchmarking
+
+Benchmark xeno against FFmpeg, ImageMagick, and libvips:
+
+```bash
+# Build xeno-edit first
+cargo build --manifest-path xeno-edit/Cargo.toml --release
+
+# Run benchmark suite
+cargo run --manifest-path tools/competitive-bench/Cargo.toml -- run \
+  --xeno-bin xeno-edit/target/release/xeno-edit \
+  --output benchmarks/competitors/results/latest.json
+
+# Gate regressions
+cargo run --manifest-path tools/competitive-bench/Cargo.toml -- gate \
+  --current benchmarks/competitors/results/latest.json \
+  --baseline benchmarks/competitors/baseline.json
+```
+
+Use strict competitor-relative thresholds (mean/p95 + PSNR/SSIM envelopes) from `benchmarks/competitors/README.md` for CI-grade gating.
+
 ### Test Coverage
 
 - **82+ unit tests** covering all modules

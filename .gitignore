@@ -59,3 +59,4 @@ Thumbs.db
 
 # Benchmark results (optional)
 # criterion/
+benchmarks/competitors/results/latest.json
