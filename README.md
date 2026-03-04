@@ -505,7 +505,7 @@ xeno-edit remove-bg photo.jpg
 xeno-edit convert webp --quality 90 photo.png
 
 # High-quality raster to SVG (vtracer backend)
-xeno-edit convert svg input.png --svg-preset photo
+xeno-edit convert svg --svg-preset photo input.png
 
 # Recenter transparent subject + optional resize
 xeno-edit recenter logo.png --resize 512x512
