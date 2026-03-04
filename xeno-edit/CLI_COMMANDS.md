@@ -68,6 +68,19 @@ xeno-edit convert webp input.png --quality 90
 
 # High-quality PNG/JPG/etc -> SVG (vtracer)
 xeno-edit convert svg input.png --svg-preset photo
+
+# Fine-tune SVG tracing quality
+xeno-edit convert svg input.png \
+  --svg-preset photo \
+  --svg-color-mode color \
+  --svg-filter-speckle 8 \
+  --svg-color-precision 8 \
+  --svg-layer-difference 32 \
+  --svg-corner-threshold 120 \
+  --svg-length-threshold 3.0 \
+  --svg-max-iterations 12 \
+  --svg-splice-threshold 45 \
+  --svg-path-precision 2
 ```
 
 ### `recenter` (`rc`)

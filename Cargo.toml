@@ -53,6 +53,9 @@ matroska = { version = "0.29", optional = true }  # MKV/WebM demuxing
 # Text overlay / font rendering (pure Rust)
 ab_glyph = { version = "0.2", optional = true }   # Font loading and glyph rasterization
 
+# Raster -> Vector (SVG)
+vtracer = { version = "0.6.5", optional = true }   # High-quality image vectorization to SVG
+
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 dav1d = { version = "0.10", optional = true }  # AV1 software decoder
 
@@ -154,6 +157,9 @@ quality = []                                       # Image quality analysis
 # Document Processing (deskew, binarization, etc.)
 document = []                                      # Document processing
 
+# Raster-to-vector SVG conversion
+vectorize = ["dep:vtracer"]                        # PNG/JPG/etc -> SVG vectorization
+
 # Full multimedia (everything)
 multimedia = ["video-full", "audio-full", "containers", "text-overlay", "subtitle"]
 
@@ -172,7 +178,7 @@ ai-full = ["ai", "ai-video", "ai-vision"]         # All AI features
 ai-full-cuda = ["ai-cuda", "ai-video-cuda", "ai-vision-cuda"]
 
 # Pro utilities (pure Rust, no AI)
-pro-utils = ["qrcode", "quality", "document"]
+pro-utils = ["qrcode", "quality", "document", "vectorize"]
 
 # Everything bundle
 full = ["multimedia", "ai-full", "pro-utils"]

@@ -50,6 +50,7 @@
 ### Image Transforms
 - Geometric: flip, rotate, crop, resize, perspective, affine
 - Subject layout: recenter transparent subjects on-canvas
+- Vectorization: convert PNG/JPG/etc into SVG paths
 - Color: brightness, contrast, saturation, hue, gamma, exposure
 - Filters: blur, sharpen, edge detect, emboss, sepia, denoise
 - Compositing: overlay, watermark, border, frame, text overlay

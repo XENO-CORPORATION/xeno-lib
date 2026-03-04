@@ -20,6 +20,7 @@ multi-core hardware.
 - `gaussian_blur`, `unsharp_mask`, `edge_detect`, `emboss`, and `sepia` deliver creative filter effects ready for pipelines.
 - `overlay`, `watermark`, `border`, and `frame` simplify compositing and presentation tasks.
 - `image_info`, `histogram`, and `sniff_format` expose analysis utilities for metadata inspection and diagnostics.
+- `vectorize_file_to_svg` and related APIs convert raster images to SVG paths.
 
 Every operation accepts an immutable `DynamicImage` reference and returns a freshly
 allocated `DynamicImage`, ensuring pure functional semantics suitable for pipeline
@@ -239,6 +240,9 @@ pub mod quality;
 #[cfg(feature = "document")]
 pub mod document;
 
+#[cfg(feature = "vectorize")]
+pub mod vectorize;
+
 // New Feature Exports
 
 #[cfg(feature = "subtitle")]
@@ -287,6 +291,12 @@ pub use crate::quality::{
 pub use crate::document::{
     deskew, detect_skew, process_document, quick_deskew, scan_enhance,
     DocumentConfig, DocumentResult, ProcessingStats,
+};
+
+#[cfg(feature = "vectorize")]
+pub use crate::vectorize::{
+    vectorize_file_to_svg, vectorize_image_to_svg_file, vectorize_image_to_svg_string,
+    VectorizeColorMode, VectorizeConfig, VectorizeError, VectorizeHierarchy, VectorizePreset,
 };
 
 #[cfg(feature = "audio")]

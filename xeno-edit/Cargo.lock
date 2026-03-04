@@ -3433,7 +3433,6 @@ dependencies = [
  "mp4",
  "serde",
  "serde_json",
- "vtracer",
  "webp-animation",
  "xeno-lib",
 ]
@@ -3456,6 +3455,7 @@ dependencies = [
  "rayon",
  "symphonia",
  "thiserror 1.0.69",
+ "vtracer",
 ]
 
 [[package]]
