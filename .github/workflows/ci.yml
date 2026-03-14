@@ -184,7 +184,7 @@ jobs:
       - name: Install parity dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y nasm pkg-config libopus-dev autoconf automake libtool-bin ffmpeg
+          sudo apt-get install -y nasm pkg-config libdav1d-dev libopus-dev autoconf automake libtool-bin ffmpeg
 
       - name: Build xeno-edit (release)
         run: cargo build --manifest-path xeno-edit/Cargo.toml --release --locked
