@@ -33,7 +33,7 @@ openh264 = { version = "0.9", optional = true, default-features = false, feature
 
 # Video decoding - GPU accelerated (NVDEC)
 # Using libloading for dynamic loading to avoid CUDA version constraints
-libloading = { version = "0.8", optional = true }
+libloading = { version = "0.9", optional = true }
 
 # Software video decoding
 # Note: On supported platforms, requires system dav1d + pkg-config
