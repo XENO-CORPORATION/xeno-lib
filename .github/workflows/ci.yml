@@ -44,12 +44,19 @@ jobs:
         run: |
           choco install nasm --yes --no-progress
           choco install pkgconfiglite --yes --no-progress
-          git clone https://github.com/microsoft/vcpkg "$env:RUNNER_TEMP\\vcpkg"
-          & "$env:RUNNER_TEMP\\vcpkg\\bootstrap-vcpkg.bat"
-          & "$env:RUNNER_TEMP\\vcpkg\\vcpkg.exe" install dav1d:x64-windows-static
-          "PKG_CONFIG_PATH=$env:RUNNER_TEMP\\vcpkg\\installed\\x64-windows-static\\lib\\pkgconfig" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $vcpkgRoot = Join-Path $env:RUNNER_TEMP "vcpkg"
+          $pkgConfigPath = Join-Path $vcpkgRoot "installed\x64-windows-static\lib\pkgconfig"
+          git clone https://github.com/microsoft/vcpkg $vcpkgRoot
+          & (Join-Path $vcpkgRoot "bootstrap-vcpkg.bat")
+          & (Join-Path $vcpkgRoot "vcpkg.exe") install dav1d:x64-windows-static
+          if (-not (Test-Path (Join-Path $pkgConfigPath "dav1d.pc"))) {
+            throw "dav1d.pc not found in $pkgConfigPath"
+          }
+          $env:PKG_CONFIG_PATH = $pkgConfigPath
+          & pkg-config --libs --cflags dav1d 'dav1d >= 1.3.0'
+          "PKG_CONFIG_PATH=$pkgConfigPath" | Out-File -FilePath $env:GITHUB_ENV -Append
           "PKG_CONFIG_ALL_STATIC=1" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "VCPKG_ROOT=$env:RUNNER_TEMP\\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Append
           where.exe nasm
           where.exe pkg-config
 
