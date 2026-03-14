@@ -163,7 +163,7 @@ jobs:
             --to benchmarks/competitors/results/linux-baseline-candidate.json
 
       - name: Upload benchmark artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: competitive-benchmark-report
           path: |
@@ -201,7 +201,7 @@ jobs:
             --fail-on-regression
 
       - name: Upload parity artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ffmpeg-parity-report
           path: |
