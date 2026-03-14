@@ -12,13 +12,13 @@ categories = ["graphics", "multimedia::images", "multimedia::video", "multimedia
 
 [dependencies]
 image = { version = "0.25", default-features = true }
-nom-exif = "2.5"
+nom-exif = "2.7"
 rayon = "1.10"
 thiserror = "1.0"
 fast_image_resize = { version = "5.3", optional = true }
 
 # Background removal dependencies
-ort = { version = "=2.0.0-rc.10", optional = true }
+ort = { version = "=2.0.0-rc.12", optional = true }
 ndarray = { version = "0.16", optional = true }
 
 # Video encoding (Phase 2)
@@ -53,7 +53,7 @@ audiopus = { version = "0.2", optional = true }   # Opus encoding (libopus bindi
 dav1d = { version = "0.10", optional = true }  # AV1 software decoder (requires system dav1d)
 
 # MP4 muxing support
-bytes = { version = "1.5", optional = true }     # For MP4 sample data
+bytes = { version = "1.11", optional = true }     # For MP4 sample data
 
 # Container demuxing
 matroska = { version = "0.29", optional = true }  # MKV/WebM demuxing
@@ -196,7 +196,7 @@ full-cuda = ["multimedia", "ai-full-cuda", "pro-utils"]
 chrono = "0.4"
 criterion = { version = "0.5", features = ["html_reports"] }
 pretty_assertions = "1.4"
-tempfile = "3.10"
+tempfile = "3.27"
 
 [[bench]]
 name = "transforms"
