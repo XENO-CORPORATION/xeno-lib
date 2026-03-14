@@ -44,7 +44,7 @@ libloading = { version = "0.8", optional = true }
 # Audio decoding - Pure Rust via Symphonia
 # Supports: MP3, AAC, FLAC, Vorbis, ALAC, WAV, AIFF, MKV, MP4, OGG, WebM
 symphonia = { version = "0.5", optional = true, features = ["all"] }
-rubato = { version = "0.15", optional = true }  # Audio resampling
+rubato = { version = "1.0", optional = true }  # Audio resampling
 
 # Audio encoding - Pure Rust
 hound = { version = "3.5", optional = true }     # WAV encoding (pure Rust)
