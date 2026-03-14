@@ -30,13 +30,13 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y nasm pkg-config libdav1d-dev
+          sudo apt-get install -y nasm pkg-config libdav1d-dev libopus-dev autoconf automake libtool-bin
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
           brew update
-          brew install nasm pkg-config dav1d
+          brew install nasm pkg-config dav1d opus autoconf automake libtool
 
       - name: Install NASM (Windows)
         if: runner.os == 'Windows'
@@ -104,7 +104,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y nasm pkg-config libdav1d-dev
+          sudo apt-get install -y nasm pkg-config libdav1d-dev libopus-dev autoconf automake libtool-bin
 
       - name: Run default tests
         run: cargo test --locked
@@ -126,7 +126,7 @@ jobs:
       - name: Install benchmark dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y nasm pkg-config libdav1d-dev ffmpeg imagemagick libvips-tools
+          sudo apt-get install -y nasm pkg-config libdav1d-dev libopus-dev autoconf automake libtool-bin ffmpeg imagemagick libvips-tools
 
       - name: Build xeno-edit (release)
         run: cargo build --manifest-path xeno-edit/Cargo.toml --release --locked
@@ -184,7 +184,7 @@ jobs:
       - name: Install parity dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y nasm pkg-config ffmpeg
+          sudo apt-get install -y nasm pkg-config libopus-dev autoconf automake libtool-bin ffmpeg
 
       - name: Build xeno-edit (release)
         run: cargo build --manifest-path xeno-edit/Cargo.toml --release --locked
