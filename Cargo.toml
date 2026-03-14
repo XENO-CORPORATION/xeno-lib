@@ -194,7 +194,7 @@ full-cuda = ["multimedia", "ai-full-cuda", "pro-utils"]
 
 [dev-dependencies]
 chrono = "0.4"
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.8", features = ["html_reports"] }
 pretty_assertions = "1.4"
 tempfile = "3.10"
 
