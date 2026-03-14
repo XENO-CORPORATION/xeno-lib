@@ -49,7 +49,7 @@ xeno-edit image-filter --brightness 10 --contrast 15 *.png
 | `video-concat` | `vcat` | Concatenate videos |
 | `text-overlay` | `drawtext` | Draw text onto images |
 | `h264-encode` | `h264` | Encode image sequence to H.264/MP4 |
-| `audio-encode` | `aenc` | Encode WAV/FLAC audio |
+| `audio-encode` | `aenc` | Encode WAV/FLAC/Opus audio |
 | `exec` | `run` | Execute JSON operation config |
 | `template` | `tpl` | Generate JSON config template |
 
@@ -204,6 +204,7 @@ xeno-edit extract-audio input.mp4 output.wav --mono
 
 ```bash
 xeno-edit audio-encode output.flac input1.wav input2.wav --format flac --sample-rate 48000 --bits 16
+xeno-edit audio-encode output.opus input.wav --format opus --bitrate 128000
 ```
 
 ## Agent and Automation Commands

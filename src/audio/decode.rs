@@ -11,6 +11,21 @@ use symphonia::core::probe::Hint;
 
 use super::error::{AudioError, AudioResult};
 
+#[cfg(feature = "audio-encode-opus")]
+use audiopus::{
+    coder::Decoder as OpusDecoder, packet as opus_packet, Channels as OpusChannels,
+    SampleRate as OpusSampleRate,
+};
+
+#[cfg(feature = "audio-encode-opus")]
+const OGG_CAPTURE_PATTERN: &[u8; 4] = b"OggS";
+#[cfg(feature = "audio-encode-opus")]
+const OPUS_HEAD_MAGIC: &[u8; 8] = b"OpusHead";
+#[cfg(feature = "audio-encode-opus")]
+const OPUS_TAGS_MAGIC: &[u8; 8] = b"OpusTags";
+#[cfg(feature = "audio-encode-opus")]
+const OPUS_OUTPUT_RATE: u32 = 48_000;
+
 /// Decoded audio data.
 #[derive(Debug, Clone)]
 pub struct DecodedAudio {
@@ -145,6 +160,243 @@ pub struct AudioDecoder {
     sample_buf: Option<SampleBuffer<f32>>,
 }
 
+#[cfg(feature = "audio-encode-opus")]
+#[derive(Debug)]
+struct OggOpusStream {
+    packets: Vec<Vec<u8>>,
+    channels: u32,
+    input_sample_rate: u32,
+    pre_skip_48k: usize,
+    final_granule_48k: Option<usize>,
+}
+
+#[cfg(feature = "audio-encode-opus")]
+fn map_opus_decode_error<E: std::fmt::Display>(err: E) -> AudioError {
+    AudioError::DecodeFailed {
+        message: err.to_string(),
+    }
+}
+
+#[cfg(feature = "audio-encode-opus")]
+fn resample_interleaved_linear(samples: &[f32], channels: usize, source_rate: u32, target_rate: u32) -> Vec<f32> {
+    if samples.is_empty() || channels == 0 || source_rate == 0 || target_rate == 0 || source_rate == target_rate {
+        return samples.to_vec();
+    }
+
+    let input_frames = samples.len() / channels;
+    if input_frames == 0 {
+        return Vec::new();
+    }
+
+    let output_frames = ((input_frames as u64 * target_rate as u64) / source_rate as u64).max(1) as usize;
+    let mut output = vec![0.0f32; output_frames * channels];
+
+    for out_frame in 0..output_frames {
+        let src_position = out_frame as f64 * source_rate as f64 / target_rate as f64;
+        let src_index = src_position.floor() as usize;
+        let next_index = (src_index + 1).min(input_frames.saturating_sub(1));
+        let fraction = (src_position - src_index as f64) as f32;
+
+        for channel in 0..channels {
+            let a = samples[src_index * channels + channel];
+            let b = samples[next_index * channels + channel];
+            output[out_frame * channels + channel] = a + (b - a) * fraction;
+        }
+    }
+
+    output
+}
+
+#[cfg(feature = "audio-encode-opus")]
+fn parse_ogg_opus_stream(bytes: &[u8]) -> AudioResult<Option<OggOpusStream>> {
+    if bytes.len() < 27 || &bytes[..4] != OGG_CAPTURE_PATTERN {
+        return Ok(None);
+    }
+
+    let mut offset = 0usize;
+    let mut serial = None;
+    let mut packet = Vec::new();
+    let mut saw_head = false;
+    let mut saw_tags = false;
+    let mut packets = Vec::new();
+    let mut channels = 0u32;
+    let mut input_sample_rate = OPUS_OUTPUT_RATE;
+    let mut pre_skip_48k = 0usize;
+    let mut final_granule_48k = None;
+
+    while offset < bytes.len() {
+        if bytes.len() - offset < 27 {
+            return Err(AudioError::DecodeFailed {
+                message: "truncated Ogg page header".to_string(),
+            });
+        }
+        if &bytes[offset..offset + 4] != OGG_CAPTURE_PATTERN {
+            return Ok(None);
+        }
+
+        let page_segments = bytes[offset + 26] as usize;
+        let segment_table_start = offset + 27;
+        let segment_table_end = segment_table_start + page_segments;
+        if segment_table_end > bytes.len() {
+            return Err(AudioError::DecodeFailed {
+                message: "truncated Ogg lacing table".to_string(),
+            });
+        }
+
+        let granule_position = u64::from_le_bytes(bytes[offset + 6..offset + 14].try_into().unwrap());
+        let page_serial = u32::from_le_bytes(bytes[offset + 14..offset + 18].try_into().unwrap());
+        if let Some(expected_serial) = serial {
+            if page_serial != expected_serial {
+                return Err(AudioError::DecodeFailed {
+                    message: "multiple Ogg logical streams are not supported".to_string(),
+                });
+            }
+        } else {
+            serial = Some(page_serial);
+        }
+
+        let mut data_offset = segment_table_end;
+        for &segment_len in &bytes[segment_table_start..segment_table_end] {
+            let segment_len = segment_len as usize;
+            let data_end = data_offset + segment_len;
+            if data_end > bytes.len() {
+                return Err(AudioError::DecodeFailed {
+                    message: "truncated Ogg packet payload".to_string(),
+                });
+            }
+
+            packet.extend_from_slice(&bytes[data_offset..data_end]);
+            data_offset = data_end;
+
+            if segment_len == 255 {
+                continue;
+            }
+
+            if !saw_head {
+                if packet.len() < 19 || &packet[..8] != OPUS_HEAD_MAGIC {
+                    return Ok(None);
+                }
+                let channel_count = packet[9];
+                if !(1..=2).contains(&channel_count) {
+                    return Err(AudioError::InvalidChannels {
+                        count: channel_count as u32,
+                    });
+                }
+                if packet[18] != 0 {
+                    return Err(AudioError::UnsupportedFormat {
+                        format: "Ogg Opus channel mapping family > 0".to_string(),
+                    });
+                }
+
+                channels = channel_count as u32;
+                pre_skip_48k = u16::from_le_bytes([packet[10], packet[11]]) as usize;
+                input_sample_rate =
+                    u32::from_le_bytes([packet[12], packet[13], packet[14], packet[15]]).max(1);
+                saw_head = true;
+            } else if !saw_tags {
+                if packet.len() < 8 || &packet[..8] != OPUS_TAGS_MAGIC {
+                    return Err(AudioError::DecodeFailed {
+                        message: "missing OpusTags packet".to_string(),
+                    });
+                }
+                saw_tags = true;
+            } else {
+                packets.push(std::mem::take(&mut packet));
+                if granule_position != u64::MAX {
+                    final_granule_48k = Some(granule_position as usize);
+                }
+                continue;
+            }
+
+            packet.clear();
+        }
+
+        offset = data_offset;
+    }
+
+    if !packet.is_empty() {
+        return Err(AudioError::DecodeFailed {
+            message: "unterminated Ogg packet".to_string(),
+        });
+    }
+
+    if !saw_head || !saw_tags {
+        return Ok(None);
+    }
+
+    Ok(Some(OggOpusStream {
+        packets,
+        channels,
+        input_sample_rate,
+        pre_skip_48k,
+        final_granule_48k,
+    }))
+}
+
+#[cfg(feature = "audio-encode-opus")]
+fn decode_ogg_opus_file<P: AsRef<Path>>(path: P) -> AudioResult<Option<DecodedAudio>> {
+    let bytes = std::fs::read(path)?;
+    let Some(stream) = parse_ogg_opus_stream(&bytes)? else {
+        return Ok(None);
+    };
+
+    let channels = match stream.channels {
+        1 => OpusChannels::Mono,
+        2 => OpusChannels::Stereo,
+        other => return Err(AudioError::InvalidChannels { count: other }),
+    };
+
+    let mut decoder = OpusDecoder::new(OpusSampleRate::Hz48000, channels).map_err(map_opus_decode_error)?;
+    let mut samples_48k = Vec::new();
+    let channel_count = stream.channels as usize;
+
+    for packet in &stream.packets {
+        let frame_count = opus_packet::nb_samples(packet.as_slice(), OpusSampleRate::Hz48000)
+            .map_err(map_opus_decode_error)?;
+        let mut decoded = vec![0.0f32; frame_count * channel_count];
+        let written = decoder
+            .decode_float(Some(packet.as_slice()), decoded.as_mut_slice(), false)
+            .map_err(map_opus_decode_error)?;
+        decoded.truncate(written * channel_count);
+        samples_48k.extend(decoded);
+    }
+
+    if stream.pre_skip_48k > 0 {
+        let skip = stream.pre_skip_48k.saturating_mul(channel_count);
+        if skip >= samples_48k.len() {
+            return Err(AudioError::DecodeFailed {
+                message: "Opus pre-skip exceeds decoded sample count".to_string(),
+            });
+        }
+        samples_48k.drain(..skip);
+    }
+
+    if let Some(final_granule_48k) = stream.final_granule_48k {
+        let wanted_frames = final_granule_48k.saturating_sub(stream.pre_skip_48k);
+        let wanted_samples = wanted_frames.saturating_mul(channel_count);
+        if wanted_samples < samples_48k.len() {
+            samples_48k.truncate(wanted_samples);
+        }
+    }
+
+    let output_sample_rate = if matches!(stream.input_sample_rate, 8_000 | 12_000 | 16_000 | 24_000 | 48_000) {
+        stream.input_sample_rate
+    } else {
+        OPUS_OUTPUT_RATE
+    };
+    let samples = if output_sample_rate == OPUS_OUTPUT_RATE {
+        samples_48k
+    } else {
+        resample_interleaved_linear(&samples_48k, channel_count, OPUS_OUTPUT_RATE, output_sample_rate)
+    };
+
+    Ok(Some(DecodedAudio {
+        samples,
+        sample_rate: output_sample_rate,
+        channels: stream.channels,
+    }))
+}
+
 impl AudioDecoder {
     /// Open an audio file for decoding.
     pub fn open<P: AsRef<Path>>(path: P) -> AudioResult<Self> {
@@ -277,6 +529,18 @@ impl AudioDecoder {
 
 /// Decode an audio file completely.
 pub fn decode_file<P: AsRef<Path>>(path: P) -> AudioResult<DecodedAudio> {
+    let path = path.as_ref();
+
+    #[cfg(feature = "audio-encode-opus")]
+    if matches!(
+        path.extension().and_then(|ext| ext.to_str()).map(|ext| ext.to_ascii_lowercase()),
+        Some(ext) if ext == "opus" || ext == "ogg"
+    ) {
+        if let Some(decoded) = decode_ogg_opus_file(path)? {
+            return Ok(decoded);
+        }
+    }
+
     AudioDecoder::open(path)?.decode_all()
 }
 

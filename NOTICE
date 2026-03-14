@@ -1,0 +1,17 @@
+xeno-lib
+Copyright 2026 XENO Corporation
+
+This repository is licensed under the Apache License, Version 2.0.
+
+Important Notices
+=================
+
+- Source code in this repository is provided under the terms of the Apache License 2.0.
+- Some optional features integrate third-party libraries, pretrained models, datasets,
+  runtime backends, codecs, or platform SDKs that may have separate licenses, patent
+  grants, distribution rules, or usage restrictions.
+- Pretrained model weights and external toolchains are not automatically relicensed by
+  this repository. Review the applicable upstream terms before redistribution or
+  commercial deployment.
+- Users are responsible for verifying compliance for any optional model, codec, GPU,
+  or system dependency they enable in their build or product.

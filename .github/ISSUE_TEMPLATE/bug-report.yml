@@ -1,0 +1,91 @@
+name: Bug Report
+description: Report a reproducible defect in xeno-lib or xeno-edit.
+title: "[Bug]: "
+labels:
+  - bug
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug report. Please provide enough detail to reproduce the issue quickly.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Summarize the problem and the impact.
+      placeholder: xeno-edit video-transcode crashes on Windows when transcoding an H.264 MP4 to AV1.
+    validations:
+      required: true
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to reproduce
+      description: List the exact commands, inputs, flags, and files needed to reproduce the issue.
+      placeholder: |
+        1. Run `xeno-edit h264-encode sample.mp4 frame1.png frame2.png --fps 2`
+        2. Run `xeno-edit video-transcode sample.mp4 sample.ivf --codec av1 --max-frames 2`
+        3. Observe the failure
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: Describe the expected result.
+      placeholder: The command should complete and write a valid output file.
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual behavior
+      description: Describe the failure, panic, invalid output, or regression.
+      placeholder: The process exits with an access violation before returning a Rust error.
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected area
+      options:
+        - Image transforms
+        - Vectorization / SVG
+        - Video encode / decode / transcode
+        - Audio encode / decode
+        - AI model pipeline
+        - CLI / automation
+        - Build / CI / packaging
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Operating system
+      options:
+        - Linux x86_64
+        - Linux aarch64
+        - macOS Apple Silicon
+        - macOS Intel
+        - Windows x86_64
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment details
+      description: Include Rust version, feature flags, GPU/backend details, and optional dependencies if relevant.
+      placeholder: Rust stable, `video-encode-h264 video-decode-sw`, RTX 4090, dav1d via vcpkg static.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and output
+      description: Paste relevant command output, stack traces, or screenshots.
+      render: shell
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add input file info, regression range, parity impact, or anything else helpful.

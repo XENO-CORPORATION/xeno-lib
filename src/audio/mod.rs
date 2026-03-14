@@ -2,16 +2,17 @@
 //!
 //! This module provides pure Rust audio decoding, encoding, filtering, and processing.
 //!
-//! # Decoding (via Symphonia)
+//! # Decoding
 //!
-//! - **Codecs**: MP3, AAC, FLAC, Vorbis, Opus, ALAC, PCM/WAV, AIFF
+//! - **Symphonia codecs**: MP3, AAC, FLAC, Vorbis, ALAC, PCM/WAV, AIFF
+//! - **Additional codec path**: Ogg Opus via `audiopus` when `audio-encode-opus` is enabled
 //! - **Containers**: MP4/M4A, MKV/WebM, OGG, WAV, AIFF, MP3
 //!
 //! # Encoding (pure Rust)
 //!
 //! - **WAV**: via hound (lossless, uncompressed)
 //! - **FLAC**: via flacenc (lossless, ~60% compression)
-//! - **Opus**: via audiopus (high-quality lossy, best for streaming)
+//! - **Opus**: via audiopus with Ogg Opus output (high-quality lossy, best for streaming)
 //!
 //! # Filters (pure Rust, FFmpeg-equivalent)
 //!
@@ -27,7 +28,7 @@
 //! - `audio-resample` - Audio resampling support
 //! - `audio-encode` - WAV encoding
 //! - `audio-encode-flac` - FLAC encoding
-//! - `audio-encode-opus` - Opus encoding (high-quality lossy)
+//! - `audio-encode-opus` - Ogg Opus encoding (high-quality lossy)
 //!
 //! # Example: Decode audio
 //!
@@ -110,7 +111,10 @@ pub use encode::{encode_wav, encode_wav_to_bytes, WavConfig, AudioOutputFormat, 
 pub use encode::{encode_flac, encode_flac_to_bytes, FlacConfig};
 
 #[cfg(feature = "audio-encode-opus")]
-pub use encode::{encode_opus, OpusApplication, OpusEncoder, OpusEncoderConfig, OpusError, OpusResult};
+pub use encode::{
+    encode_opus, encode_opus_ogg, encode_opus_ogg_to_bytes, OpusApplication, OpusEncoder,
+    OpusEncoderConfig, OpusError, OpusResult,
+};
 
 // Audio effects module (Phase 3 - Reverb, EQ, Pitch, etc.)
 #[cfg(feature = "audio")]

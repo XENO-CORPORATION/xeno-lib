@@ -79,7 +79,7 @@ impl AudioFormat {
         match ext.to_lowercase().as_str() {
             "mp3" => AudioFormat::Mp3,
             "mp4" | "m4a" | "m4b" | "m4p" | "aac" => AudioFormat::Mp4,
-            "ogg" | "oga" => AudioFormat::Ogg,
+            "ogg" | "oga" | "opus" => AudioFormat::Ogg,
             "flac" => AudioFormat::Flac,
             "wav" | "wave" => AudioFormat::Wav,
             "aiff" | "aif" => AudioFormat::Aiff,

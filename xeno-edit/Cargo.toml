@@ -3,13 +3,16 @@ name = "xeno-edit"
 version = "0.1.0"
 edition = "2024"
 description = "CLI tool for image editing powered by xeno-lib"
+license = "Apache-2.0"
+repository = "https://github.com/XENO-CORPORATION/xeno-lib"
+homepage = "https://github.com/XENO-CORPORATION/xeno-lib"
 
 [[bin]]
 name = "xeno-edit"
 path = "src/main.rs"
 
 [dependencies]
-xeno-lib = { path = "..", features = ["background-removal", "video-encode", "video-encode-h264", "video-decode", "audio", "audio-encode-flac", "text-overlay", "vectorize"] }
+xeno-lib = { path = "..", features = ["background-removal", "video-encode", "video-encode-h264", "video-decode", "video-decode-sw", "audio", "audio-encode-flac", "audio-encode-opus", "text-overlay", "vectorize"] }
 clap = { version = "4.5", features = ["derive"] }
 image = "0.25"
 anyhow = "1.0"

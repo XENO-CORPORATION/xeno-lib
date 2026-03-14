@@ -1,0 +1,48 @@
+name: Feature Request
+description: Propose a new capability or improvement for xeno-lib or xeno-edit.
+title: "[Feature]: "
+labels:
+  - enhancement
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the feature in terms of the user workflow or product gap it addresses.
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: Feature description
+      description: Describe the capability you want.
+      placeholder: Add WebM muxing to xeno-edit so AV1 output can be shipped in a widely supported container.
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation / use case
+      description: Explain why this matters and who benefits.
+      placeholder: This closes a parity gap with FFmpeg and enables browser-friendly AV1 delivery without external remux tools.
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed solution
+      description: Share an implementation direction, API sketch, or CLI proposal if you have one.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe workarounds or competing approaches.
+  - type: textarea
+    id: validation
+    attributes:
+      label: Expected validation
+      description: What tests, parity rows, or benchmarks should prove this feature is done?
+      placeholder: Add mux tests, update capabilities, update parity spec, and add a CLI round-trip smoke.
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add links, competitor references, design notes, or related issues.

@@ -38,14 +38,18 @@
 #[cfg(feature = "video-decode")]
 mod nvdec;
 
-#[cfg(all(feature = "video-decode-sw", not(target_os = "windows")))]
+#[cfg(feature = "video-decode-sw")]
 mod dav1d_decoder;
+#[cfg(feature = "video-decode-sw")]
+mod openh264_decoder;
 
 #[cfg(feature = "video-decode")]
 pub use nvdec::*;
 
-#[cfg(all(feature = "video-decode-sw", not(target_os = "windows")))]
+#[cfg(feature = "video-decode-sw")]
 pub use dav1d_decoder::Dav1dDecoder;
+#[cfg(feature = "video-decode-sw")]
+pub use openh264_decoder::OpenH264Decoder;
 
 use crate::video::VideoError;
 
@@ -313,6 +317,8 @@ pub enum DecoderBackend {
     Nvdec,
     /// dav1d software decoder (AV1 only)
     Dav1d,
+    /// OpenH264 software decoder (H.264 only)
+    OpenH264,
     /// No decoder available
     None,
 }
@@ -330,24 +336,29 @@ pub fn best_decoder_for(codec: DecodeCodec) -> DecoderBackend {
     }
 
     // Fall back to software decoder for AV1
-    #[cfg(all(feature = "video-decode-sw", not(target_os = "windows")))]
+    #[cfg(feature = "video-decode-sw")]
     if codec == DecodeCodec::Av1 && Dav1dDecoder::is_available() {
         return DecoderBackend::Dav1d;
+    }
+
+    #[cfg(feature = "video-decode-sw")]
+    if codec == DecodeCodec::H264 && OpenH264Decoder::is_available() {
+        return DecoderBackend::OpenH264;
     }
 
     DecoderBackend::None
 }
 
 /// Get the best available decoder backend for a codec (software only version).
-#[cfg(all(
-    feature = "video-decode-sw",
-    not(feature = "video-decode"),
-    not(target_os = "windows")
-))]
+#[cfg(all(feature = "video-decode-sw", not(feature = "video-decode")))]
 pub fn best_decoder_for(codec: DecodeCodec) -> DecoderBackend {
     // Software decoder for AV1
     if codec == DecodeCodec::Av1 && Dav1dDecoder::is_available() {
         return DecoderBackend::Dav1d;
+    }
+
+    if codec == DecodeCodec::H264 && OpenH264Decoder::is_available() {
+        return DecoderBackend::OpenH264;
     }
 
     DecoderBackend::None
@@ -392,17 +403,28 @@ pub fn decode_ivf<P: AsRef<std::path::Path>>(path: P) -> Result<Vec<DecodedFrame
             let mut decoder = NvDecoder::new(config)?;
             decoder.decode_ivf_file(path)
         }
-        #[cfg(all(feature = "video-decode-sw", not(target_os = "windows")))]
+        #[cfg(feature = "video-decode-sw")]
         DecoderBackend::Dav1d => {
             let mut decoder = Dav1dDecoder::new()?;
             decoder.decode_ivf_file(path)
         }
-        #[cfg(not(all(feature = "video-decode-sw", not(target_os = "windows"))))]
+        #[cfg(not(feature = "video-decode-sw"))]
         DecoderBackend::Dav1d => Err(VideoError::Decoding {
             message: "dav1d software decoder not available on this platform/build.".to_string(),
         }),
+        #[cfg(feature = "video-decode-sw")]
+        DecoderBackend::OpenH264 => Err(VideoError::Decoding {
+            message: "OpenH264 software decoder is not used for IVF inputs.".to_string(),
+        }),
+        #[cfg(not(feature = "video-decode-sw"))]
+        DecoderBackend::OpenH264 => Err(VideoError::Decoding {
+            message: "OpenH264 software decoder not available on this platform/build.".to_string(),
+        }),
         DecoderBackend::None => Err(VideoError::Decoding {
-            message: format!("No decoder available for {:?}. NVDEC or dav1d required.", codec),
+            message: format!(
+                "No decoder available for {:?}. NVDEC or software decoder support required.",
+                codec
+            ),
         }),
     }
 }

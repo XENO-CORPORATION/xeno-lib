@@ -27,10 +27,13 @@ use xeno_lib::video::{encode_h264_to_mp4, encode_to_h264, H264EncoderConfig};
 use xeno_lib::video::open_container;
 use xeno_lib::video::VideoCodec;
 use xeno_lib::video::decode::{
-    DecodeCodec, DecoderBackend, DecoderConfig, NvDecoder, VideoDecoder, best_decoder_for,
-    decode_ivf,
+    DecodeCodec, DecoderBackend, DecoderConfig, NvDecoder, OpenH264Decoder, VideoDecoder,
+    best_decoder_for, decode_ivf,
 };
-use xeno_lib::audio::{AudioInfo, decode_file, encode_wav, encode_flac, WavConfig, FlacConfig};
+use xeno_lib::audio::{
+    AudioInfo, AudioOutputFormat, FlacConfig, OpusEncoderConfig, WavConfig, decode_file,
+    encode_flac, encode_opus_ogg, encode_wav,
+};
 use xeno_lib::transforms::{
     flip_horizontal, flip_vertical, flip_both, rotate_90_cw, rotate_180, rotate_270_cw, crop,
     recenter, recenter_with_alpha_threshold, resize_exact, Interpolation,
@@ -1084,20 +1087,20 @@ enum Commands {
         quiet: bool,
     },
 
-    /// Encode audio to WAV or FLAC format (native, no FFmpeg)
+    /// Encode audio to WAV, FLAC, or Opus format (native, no FFmpeg)
     ///
-    /// Converts audio files to lossless WAV or FLAC format.
-    /// WAV is uncompressed, FLAC provides ~60% compression.
+    /// Converts audio files to WAV, FLAC, or Ogg Opus output.
+    /// WAV is uncompressed, FLAC is lossless compression, Opus is high-quality lossy compression.
     #[command(name = "audio-encode", alias = "aenc")]
     AudioEncode {
-        /// Output audio path (.wav or .flac)
+        /// Output audio path (.wav, .flac, .opus, or .ogg)
         output: PathBuf,
 
         /// Input audio file(s) to concatenate and encode
         #[arg(required = true, num_args = 1..)]
         inputs: Vec<PathBuf>,
 
-        /// Output format: wav, flac (auto-detected from extension if not specified)
+        /// Output format: wav, flac, opus (auto-detected from extension if not specified)
         #[arg(short, long)]
         format: Option<String>,
 
@@ -1108,6 +1111,10 @@ enum Commands {
         /// Bits per sample: 8, 16, 24, 32 for WAV; 16, 24 for FLAC
         #[arg(short, long, default_value = "16")]
         bits: u16,
+
+        /// Target bitrate in bps for Opus output (ignored for WAV/FLAC)
+        #[arg(long, default_value = "128000")]
+        bitrate: u32,
 
         /// Suppress output messages
         #[arg(short = 'Q', long)]
@@ -1343,8 +1350,8 @@ fn run_cli() -> Result<()> {
         } => cmd_h264_encode(output, inputs, fps, bitrate, width, height, raw, quiet),
 
         Commands::AudioEncode {
-            output, inputs, format, sample_rate, bits, quiet
-        } => cmd_audio_encode(output, inputs, format, sample_rate, bits, quiet),
+            output, inputs, format, sample_rate, bits, bitrate, quiet
+        } => cmd_audio_encode(output, inputs, format, sample_rate, bits, bitrate, quiet),
 
         Commands::Exec { config, output, json } => cmd_exec(config, output, json),
 
@@ -3643,6 +3650,11 @@ fn cmd_video_frames(
                 println!("dav1d (software)");
             }
         }
+        DecoderBackend::OpenH264 => {
+            if !quiet {
+                println!("OpenH264 (software)");
+            }
+        }
         DecoderBackend::None => {
             anyhow::bail!("No decoder available for {:?}. NVDEC GPU required.", codec);
         }
@@ -4031,6 +4043,16 @@ fn cmd_video_thumbnail(
     Ok(())
 }
 
+fn transcode_decoder_backend(codec: DecodeCodec) -> DecoderBackend {
+    // Prefer the validated software H.264 path for container transcoding.
+    // NVDEC remains available for codecs without a stable software fallback.
+    if codec == DecodeCodec::H264 && OpenH264Decoder::is_available() {
+        return DecoderBackend::OpenH264;
+    }
+
+    best_decoder_for(codec)
+}
+
 // ============================================================================
 // Video Transcode Command (decode → transform → encode)
 // FFmpeg-equivalent filters: brightness, contrast, saturation, hue, gamma,
@@ -4146,7 +4168,18 @@ fn cmd_video_transcode(
                 other => anyhow::bail!("Unsupported container video codec for transcoding: {}", other),
             };
 
-            match best_decoder_for(decode_codec) {
+            let decoder_backend = transcode_decoder_backend(decode_codec);
+            if !quiet {
+                let backend_name = match decoder_backend {
+                    DecoderBackend::Nvdec => "NVDEC (GPU)",
+                    DecoderBackend::Dav1d => "dav1d (software)",
+                    DecoderBackend::OpenH264 => "OpenH264 (software)",
+                    DecoderBackend::None => "none",
+                };
+                println!("using {}", backend_name);
+            }
+
+            match decoder_backend {
                 DecoderBackend::Nvdec => {
                     let mut decoder = NvDecoder::new(DecoderConfig::new(decode_codec))
                         .context("Failed to initialize NVDEC decoder")?;
@@ -4177,6 +4210,31 @@ fn cmd_video_transcode(
                         "Software AV1 decoder is currently IVF-only for transcoding. \
                          Use IVF input or run on a system with NVDEC."
                     );
+                }
+                DecoderBackend::OpenH264 => {
+                    let mut decoder = OpenH264Decoder::new()
+                        .context("Failed to initialize OpenH264 decoder")?;
+
+                    let mut frames = Vec::new();
+
+                    while let Some(packet) = demuxer.next_video_packet()
+                        .context("Failed reading container video packet")? {
+                        decoder.decode_packet(&packet.data, packet.pts)
+                            .context("Failed to decode packet with OpenH264")?;
+
+                        while let Some(frame) = decoder.next_frame()
+                            .context("Failed to read decoded OpenH264 frame")? {
+                            frames.push(frame);
+                        }
+                    }
+
+                    decoder.flush().context("Failed to flush OpenH264 decoder")?;
+                    while let Some(frame) = decoder.next_frame()
+                        .context("Failed to read flushed OpenH264 frame")? {
+                        frames.push(frame);
+                    }
+
+                    (frames, source_fps)
                 }
                 DecoderBackend::None => {
                     anyhow::bail!("No compatible decoder available for codec {:?}", decode_codec);
@@ -5420,12 +5478,104 @@ fn cmd_h264_encode(
 // Audio Encode Command (WAV/FLAC)
 // ============================================================================
 
+fn is_supported_opus_sample_rate(sample_rate: u32) -> bool {
+    matches!(sample_rate, 8000 | 12000 | 16000 | 24000 | 48000)
+}
+
+fn default_opus_sample_rate(sample_rate: u32) -> u32 {
+    if is_supported_opus_sample_rate(sample_rate) {
+        sample_rate
+    } else {
+        48_000
+    }
+}
+
+fn resolve_audio_output_format(output: &std::path::Path, format: Option<&str>) -> Result<AudioOutputFormat> {
+    if let Some(format) = format {
+        let normalized = format.trim().to_ascii_lowercase();
+        return match normalized.as_str() {
+            "wav" | "wave" => Ok(AudioOutputFormat::Wav),
+            "flac" => Ok(AudioOutputFormat::Flac),
+            "opus" | "ogg" => Ok(AudioOutputFormat::Opus),
+            _ => anyhow::bail!("Unsupported output format: {}. Use wav, flac, or opus.", normalized),
+        };
+    }
+
+    let ext = output
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("wav");
+
+    AudioOutputFormat::from_extension(ext)
+        .ok_or_else(|| anyhow::anyhow!("Unsupported output format: {}. Use wav, flac, or opus.", ext))
+}
+
+fn finalize_audio_output_path(output: PathBuf, out_format: AudioOutputFormat) -> PathBuf {
+    let ext_matches = match out_format {
+        AudioOutputFormat::Wav => output
+            .extension()
+            .and_then(|value| value.to_str())
+            .map(|ext| matches!(ext.to_ascii_lowercase().as_str(), "wav" | "wave"))
+            .unwrap_or(false),
+        AudioOutputFormat::Flac => output
+            .extension()
+            .and_then(|value| value.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("flac"))
+            .unwrap_or(false),
+        AudioOutputFormat::Opus => output
+            .extension()
+            .and_then(|value| value.to_str())
+            .map(|ext| matches!(ext.to_ascii_lowercase().as_str(), "opus" | "ogg"))
+            .unwrap_or(false),
+    };
+
+    if ext_matches {
+        output
+    } else {
+        output.with_extension(out_format.extension())
+    }
+}
+
+fn resample_interleaved_linear(samples: &[f32], channels: usize, source_rate: u32, target_rate: u32) -> Vec<f32> {
+    if samples.is_empty() || channels == 0 || source_rate == target_rate {
+        return samples.to_vec();
+    }
+
+    let input_frames = samples.len() / channels;
+    if input_frames == 0 {
+        return Vec::new();
+    }
+
+    let output_frames = ((input_frames as u64 * target_rate as u64) / source_rate as u64) as usize;
+    if output_frames == 0 {
+        return Vec::new();
+    }
+
+    let mut output = vec![0.0f32; output_frames * channels];
+
+    for out_frame in 0..output_frames {
+        let src_position = out_frame as f64 * source_rate as f64 / target_rate as f64;
+        let src_index = src_position.floor() as usize;
+        let next_index = (src_index + 1).min(input_frames.saturating_sub(1));
+        let fraction = (src_position - src_index as f64) as f32;
+
+        for channel in 0..channels {
+            let a = samples[src_index * channels + channel];
+            let b = samples[next_index * channels + channel];
+            output[out_frame * channels + channel] = a + (b - a) * fraction;
+        }
+    }
+
+    output
+}
+
 fn cmd_audio_encode(
     output: PathBuf,
     inputs: Vec<PathBuf>,
     format: Option<String>,
     sample_rate: u32,
     bits: u16,
+    bitrate: u32,
     quiet: bool,
 ) -> Result<()> {
     let start = Instant::now();
@@ -5434,48 +5584,35 @@ fn cmd_audio_encode(
         anyhow::bail!("No input audio files specified");
     }
 
-    // Determine output format
-    let out_format = if let Some(ref fmt) = format {
-        fmt.to_lowercase()
-    } else {
-        output
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("wav")
-            .to_lowercase()
+    let out_format = resolve_audio_output_format(&output, format.as_deref())?;
+    let format_label = match out_format {
+        AudioOutputFormat::Wav => "WAV",
+        AudioOutputFormat::Flac => "FLAC",
+        AudioOutputFormat::Opus => "Opus",
     };
 
-    let is_flac = out_format == "flac";
-    let is_wav = out_format == "wav" || out_format == "wave";
-
-    if !is_flac && !is_wav {
-        anyhow::bail!("Unsupported output format: {}. Use 'wav' or 'flac'.", out_format);
-    }
-
     if !quiet {
-        println!("xeno-edit audio-encode ({})", if is_flac { "FLAC" } else { "WAV" });
+        println!("xeno-edit audio-encode ({})", format_label);
         println!("================================");
         println!("Input files: {}", inputs.len());
         println!("Output: {}", output.display());
         println!();
     }
 
-    // Decode all input files
     if !quiet {
         print!("Decoding {} input file(s)... ", inputs.len());
     }
 
     let decode_start = Instant::now();
-    let mut all_samples: Vec<f32> = Vec::new();
-    let mut source_sample_rate: u32 = 0;
-    let mut source_channels: u32 = 0;
+    let mut all_samples = Vec::new();
+    let mut source_sample_rate = 0u32;
+    let mut source_channels = 0u32;
 
-    for (idx, input) in inputs.iter().enumerate() {
+    for (index, input) in inputs.iter().enumerate() {
         let audio = decode_file(input)
             .with_context(|| format!("Failed to decode audio: {}", input.display()))?;
 
-        // Check for sample rate/channel consistency
-        if idx == 0 {
+        if index == 0 {
             source_sample_rate = audio.sample_rate;
             source_channels = audio.channels;
         } else if audio.sample_rate != source_sample_rate || audio.channels != source_channels {
@@ -5492,49 +5629,92 @@ fn cmd_audio_encode(
         all_samples.extend(audio.samples);
     }
 
+    if all_samples.is_empty() {
+        anyhow::bail!("Decoded audio is empty");
+    }
+
     if !quiet {
         println!("done ({:.1?})", decode_start.elapsed());
         println!("Sample rate: {} Hz", source_sample_rate);
         println!("Channels: {}", source_channels);
         println!("Total samples: {}", all_samples.len());
-        println!("Duration: {:.2}s", all_samples.len() as f64 / (source_sample_rate as f64 * source_channels as f64));
+        println!(
+            "Duration: {:.2}s",
+            all_samples.len() as f64 / (source_sample_rate as f64 * source_channels as f64)
+        );
         println!();
     }
 
-    // Use specified sample rate or source rate
-    let target_sample_rate = if sample_rate > 0 { sample_rate } else { source_sample_rate };
+    if out_format == AudioOutputFormat::Opus && source_channels > 2 {
+        anyhow::bail!(
+            "Opus output currently supports mono or stereo only, got {} channels",
+            source_channels
+        );
+    }
 
-    // Ensure proper extension
-    let output_path = if is_flac {
-        if output.extension().map_or(true, |e| e != "flac") {
-            output.with_extension("flac")
-        } else {
-            output
+    let target_sample_rate = match out_format {
+        AudioOutputFormat::Opus => {
+            if sample_rate > 0 {
+                if !is_supported_opus_sample_rate(sample_rate) {
+                    anyhow::bail!(
+                        "Unsupported Opus sample rate: {}. Use 8000, 12000, 16000, 24000, or 48000.",
+                        sample_rate
+                    );
+                }
+                sample_rate
+            } else {
+                default_opus_sample_rate(source_sample_rate)
+            }
         }
-    } else {
-        if output.extension().map_or(true, |e| e != "wav" && e != "wave") {
-            output.with_extension("wav")
-        } else {
-            output
+        _ => {
+            if sample_rate > 0 {
+                sample_rate
+            } else {
+                source_sample_rate
+            }
         }
     };
 
-    // Encode
+    if target_sample_rate != source_sample_rate {
+        if !quiet {
+            println!(
+                "Resampling from {} Hz to {} Hz...",
+                source_sample_rate, target_sample_rate
+            );
+        }
+
+        all_samples = resample_interleaved_linear(
+            &all_samples,
+            source_channels as usize,
+            source_sample_rate,
+            target_sample_rate,
+        );
+    }
+
+    let output_path = finalize_audio_output_path(output, out_format);
+
     if !quiet {
-        println!("Encoding to {}...", if is_flac { "FLAC" } else { "WAV" });
+        println!("Encoding to {}...", format_label);
     }
 
     let encode_start = Instant::now();
-    let sample_count = if is_flac {
-        let config = FlacConfig::new(target_sample_rate, source_channels as u16)
-            .with_bits(bits);
-        encode_flac(&all_samples, &output_path, config)
-            .with_context(|| "Failed to encode FLAC")?
-    } else {
-        let config = WavConfig::new(target_sample_rate, source_channels as u16)
-            .with_bits(bits);
-        encode_wav(&all_samples, &output_path, config)
-            .with_context(|| "Failed to encode WAV")?
+    let units_written = match out_format {
+        AudioOutputFormat::Flac => {
+            let config = FlacConfig::new(target_sample_rate, source_channels as u16).with_bits(bits);
+            encode_flac(&all_samples, &output_path, config)
+                .with_context(|| "Failed to encode FLAC")?
+        }
+        AudioOutputFormat::Wav => {
+            let config = WavConfig::new(target_sample_rate, source_channels as u16).with_bits(bits);
+            encode_wav(&all_samples, &output_path, config)
+                .with_context(|| "Failed to encode WAV")?
+        }
+        AudioOutputFormat::Opus => {
+            let config = OpusEncoderConfig::new(target_sample_rate, source_channels as u8)
+                .with_bitrate(bitrate);
+            encode_opus_ogg(&all_samples, &output_path, config)
+                .with_context(|| "Failed to encode Ogg Opus")?
+        }
     };
 
     let encode_time = encode_start.elapsed();
@@ -5545,13 +5725,21 @@ fn cmd_audio_encode(
         println!("Encoding complete!");
         println!("==================");
         println!("Output: {}", output_path.display());
-        println!("Format: {}", if is_flac { "FLAC" } else { "WAV" });
-        println!("Samples written: {}", sample_count);
-        println!("Bits per sample: {}", bits);
+        println!("Format: {}", format_label);
+        match out_format {
+            AudioOutputFormat::Opus => {
+                println!("Frames written: {}", units_written);
+                println!("Bitrate: {} bps", bitrate);
+            }
+            _ => {
+                println!("Samples written: {}", units_written);
+                println!("Bits per sample: {}", bits);
+            }
+        }
+        println!("Sample rate: {} Hz", target_sample_rate);
         println!("Encode time: {:.2?}", encode_time);
         println!("Total time: {:.2?}", total_time);
 
-        // Show file size
         if let Ok(meta) = std::fs::metadata(&output_path) {
             let size_kb = meta.len() as f64 / 1024.0;
             if size_kb > 1024.0 {
@@ -5560,11 +5748,16 @@ fn cmd_audio_encode(
                 println!("Size: {:.2} KB", size_kb);
             }
 
-            // Calculate compression ratio if we have source data
-            let uncompressed_size = all_samples.len() * 2; // 16-bit reference
+            let uncompressed_size = all_samples.len() * 2;
             let ratio = uncompressed_size as f64 / meta.len() as f64;
-            if is_flac {
-                println!("Compression ratio: {:.1}x ({:.1}% of uncompressed)", ratio, 100.0 / ratio);
+            match out_format {
+                AudioOutputFormat::Flac => {
+                    println!("Compression ratio: {:.1}x ({:.1}% of uncompressed)", ratio, 100.0 / ratio);
+                }
+                AudioOutputFormat::Opus => {
+                    println!("Size vs 16-bit PCM: {:.1}% of uncompressed", 100.0 / ratio);
+                }
+                AudioOutputFormat::Wav => {}
             }
         }
     } else {

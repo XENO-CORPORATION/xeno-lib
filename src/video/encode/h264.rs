@@ -15,6 +15,7 @@
 //! - `.mp4` - Proper MP4 container (requires mp4 crate)
 
 use image::DynamicImage;
+use mp4::{AvcConfig, Bytes, MediaConfig, Mp4Config, Mp4Sample, Mp4Writer, TrackConfig, TrackType};
 use openh264::encoder::{Encoder, EncoderConfig};
 use openh264::formats::YUVSource;
 use std::fs::File;
@@ -575,45 +576,63 @@ fn write_mp4_h264<W: Write + Seek>(
     pps: &[u8],
     config: &H264EncoderConfig,
 ) -> VideoResult<()> {
-    let frame_count = frames.len() as u32;
-    let timescale = (config.frame_rate * 1000.0) as u32;
-    let sample_duration = 1000; // Each frame = 1000 ticks at our timescale
-    let duration = frame_count * sample_duration;
+    let mp4_config = Mp4Config {
+        major_brand: "isom".parse().unwrap(),
+        minor_version: 512,
+        compatible_brands: vec![
+            "isom".parse().unwrap(),
+            "iso2".parse().unwrap(),
+            "avc1".parse().unwrap(),
+            "mp41".parse().unwrap(),
+        ],
+        timescale: 1000,
+    };
 
-    // Calculate sample sizes and build mdat
-    let mut sample_sizes: Vec<u32> = Vec::with_capacity(frames.len());
-    let mut mdat_data: Vec<u8> = Vec::new();
-    let mut sync_samples: Vec<u32> = Vec::new();
+    let mut mp4_writer =
+        Mp4Writer::write_start(writer, &mp4_config).map_err(|e| VideoError::Container {
+            message: format!("Failed to start MP4 writer: {}", e),
+        })?;
 
-    for (i, frame) in frames.iter().enumerate() {
-        // Convert Annex B to AVCC format (length-prefixed)
+    let video_timescale = ((config.frame_rate * 1000.0).round() as u32).max(1);
+    let frame_duration = 1000u32;
+    let track_config = TrackConfig {
+        track_type: TrackType::Video,
+        timescale: video_timescale,
+        language: String::from("und"),
+        media_conf: MediaConfig::AvcConfig(AvcConfig {
+            width: config.width as u16,
+            height: config.height as u16,
+            seq_param_set: sps.to_vec(),
+            pic_param_set: pps.to_vec(),
+        }),
+    };
+
+    mp4_writer
+        .add_track(&track_config)
+        .map_err(|e| VideoError::Container {
+            message: format!("Failed to add H.264 MP4 track: {}", e),
+        })?;
+
+    for (index, frame) in frames.iter().enumerate() {
         let avcc_data = annex_b_to_avcc(&frame.data);
-        sample_sizes.push(avcc_data.len() as u32);
-        mdat_data.extend_from_slice(&avcc_data);
+        let sample = Mp4Sample {
+            start_time: index as u64 * frame_duration as u64,
+            duration: frame_duration,
+            rendering_offset: 0,
+            is_sync: frame.is_keyframe,
+            bytes: Bytes::copy_from_slice(&avcc_data),
+        };
 
-        if frame.is_keyframe {
-            sync_samples.push((i + 1) as u32); // 1-indexed
-        }
+        mp4_writer
+            .write_sample(1, &sample)
+            .map_err(|e| VideoError::Container {
+                message: format!("Failed to write H.264 MP4 sample: {}", e),
+            })?;
     }
 
-    // Calculate offsets
-    let ftyp_size = 20u32;
-    let moov_size = calculate_moov_size(frame_count, &sample_sizes, sps, pps, &sync_samples);
-    let mdat_header_size = 8u32;
-    let mdat_offset = ftyp_size + moov_size + mdat_header_size;
-
-    // Write ftyp
-    write_ftyp(writer)?;
-
-    // Write moov
-    write_moov(writer, config, frame_count, timescale, duration,
-               sps, pps, &sample_sizes, mdat_offset, &sync_samples)?;
-
-    // Write mdat
-    let mdat_size = mdat_header_size + mdat_data.len() as u32;
-    writer.write_all(&mdat_size.to_be_bytes())?;
-    writer.write_all(b"mdat")?;
-    writer.write_all(&mdat_data)?;
+    mp4_writer.write_end().map_err(|e| VideoError::Container {
+        message: format!("Failed to finalize H.264 MP4: {}", e),
+    })?;
 
     Ok(())
 }
@@ -662,451 +681,56 @@ fn annex_b_to_avcc(data: &[u8]) -> Vec<u8> {
     result
 }
 
-// Helper functions for MP4 writing
-fn write_ftyp<W: Write>(w: &mut W) -> VideoResult<()> {
-    let size = 20u32;
-    w.write_all(&size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"ftyp").map_err(io_err)?;
-    w.write_all(b"isom").map_err(io_err)?; // major brand
-    w.write_all(&0u32.to_be_bytes()).map_err(io_err)?; // minor version
-    w.write_all(b"isom").map_err(io_err)?; // compatible brand
-    Ok(())
-}
-
-fn calculate_moov_size(
-    frame_count: u32,
-    _sample_sizes: &[u32],
-    sps: &[u8],
-    pps: &[u8],
-    sync_samples: &[u32],
-) -> u32 {
-    // This is an approximation - actual sizes depend on box structure
-    let mvhd_size = 108u32;
-    let tkhd_size = 92u32;
-    let mdhd_size = 32u32;
-    let hdlr_size = 45u32;
-    let vmhd_size = 20u32;
-    let dinf_size = 36u32;
-
-    // stsd with avcC
-    let avcc_size = 11 + sps.len() as u32 + 3 + pps.len() as u32;
-    let avc1_size = 86 + 8 + avcc_size;
-    let stsd_size = 16 + avc1_size;
-
-    // stts (single entry for constant frame rate)
-    let stts_size = 24u32;
-
-    // stsz
-    let stsz_size = 20 + (frame_count * 4);
-
-    // stsc (single entry)
-    let stsc_size = 28u32;
-
-    // stco (single entry)
-    let stco_size = 20u32;
-
-    // stss (sync samples)
-    let stss_size = 16 + (sync_samples.len() as u32 * 4);
-
-    let stbl_size = 8 + stsd_size + stts_size + stsz_size + stsc_size + stco_size + stss_size;
-    let minf_size = 8 + vmhd_size + dinf_size + stbl_size;
-    let mdia_size = 8 + mdhd_size + hdlr_size + minf_size;
-    let trak_size = 8 + tkhd_size + mdia_size;
-    let moov_size = 8 + mvhd_size + trak_size;
-
-    moov_size
-}
-
-fn write_moov<W: Write>(
-    w: &mut W,
-    config: &H264EncoderConfig,
-    frame_count: u32,
-    timescale: u32,
-    duration: u32,
-    sps: &[u8],
-    pps: &[u8],
-    sample_sizes: &[u32],
-    mdat_offset: u32,
-    sync_samples: &[u32],
-) -> VideoResult<()> {
-    let moov_size = calculate_moov_size(frame_count, sample_sizes, sps, pps, sync_samples);
-
-    // moov header
-    w.write_all(&moov_size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"moov").map_err(io_err)?;
-
-    // mvhd
-    write_mvhd(w, timescale, duration)?;
-
-    // trak
-    write_trak(w, config, frame_count, timescale, duration, sps, pps, sample_sizes, mdat_offset, sync_samples)?;
-
-    Ok(())
-}
-
-fn write_mvhd<W: Write>(w: &mut W, timescale: u32, duration: u32) -> VideoResult<()> {
-    let size = 108u32;
-    w.write_all(&size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"mvhd").map_err(io_err)?;
-    w.write_all(&[0, 0, 0, 0]).map_err(io_err)?; // version + flags
-    w.write_all(&0u32.to_be_bytes()).map_err(io_err)?; // creation time
-    w.write_all(&0u32.to_be_bytes()).map_err(io_err)?; // modification time
-    w.write_all(&timescale.to_be_bytes()).map_err(io_err)?;
-    w.write_all(&duration.to_be_bytes()).map_err(io_err)?;
-    w.write_all(&0x00010000u32.to_be_bytes()).map_err(io_err)?; // rate = 1.0
-    w.write_all(&0x0100u16.to_be_bytes()).map_err(io_err)?; // volume = 1.0
-    w.write_all(&[0u8; 10]).map_err(io_err)?; // reserved
-    // Unity matrix
-    w.write_all(&0x00010000u32.to_be_bytes()).map_err(io_err)?;
-    w.write_all(&[0u8; 12]).map_err(io_err)?;
-    w.write_all(&0x00010000u32.to_be_bytes()).map_err(io_err)?;
-    w.write_all(&[0u8; 12]).map_err(io_err)?;
-    w.write_all(&0x40000000u32.to_be_bytes()).map_err(io_err)?;
-    w.write_all(&[0u8; 24]).map_err(io_err)?; // pre-defined
-    w.write_all(&2u32.to_be_bytes()).map_err(io_err)?; // next track ID
-    Ok(())
-}
-
-fn write_trak<W: Write>(
-    w: &mut W,
-    config: &H264EncoderConfig,
-    frame_count: u32,
-    timescale: u32,
-    duration: u32,
-    sps: &[u8],
-    pps: &[u8],
-    sample_sizes: &[u32],
-    mdat_offset: u32,
-    sync_samples: &[u32],
-) -> VideoResult<()> {
-    // Calculate trak size
-    let trak_size = calculate_moov_size(frame_count, sample_sizes, sps, pps, sync_samples) - 8 - 108;
-
-    w.write_all(&trak_size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"trak").map_err(io_err)?;
-
-    // tkhd
-    write_tkhd(w, config, duration)?;
-
-    // mdia
-    write_mdia(w, config, frame_count, timescale, duration, sps, pps, sample_sizes, mdat_offset, sync_samples)?;
-
-    Ok(())
-}
-
-fn write_tkhd<W: Write>(w: &mut W, config: &H264EncoderConfig, duration: u32) -> VideoResult<()> {
-    let size = 92u32;
-    w.write_all(&size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"tkhd").map_err(io_err)?;
-    w.write_all(&[0, 0, 0, 3]).map_err(io_err)?; // version + flags (enabled + in movie)
-    w.write_all(&0u32.to_be_bytes()).map_err(io_err)?; // creation time
-    w.write_all(&0u32.to_be_bytes()).map_err(io_err)?; // modification time
-    w.write_all(&1u32.to_be_bytes()).map_err(io_err)?; // track ID
-    w.write_all(&0u32.to_be_bytes()).map_err(io_err)?; // reserved
-    w.write_all(&duration.to_be_bytes()).map_err(io_err)?;
-    w.write_all(&[0u8; 8]).map_err(io_err)?; // reserved
-    w.write_all(&0u16.to_be_bytes()).map_err(io_err)?; // layer
-    w.write_all(&0u16.to_be_bytes()).map_err(io_err)?; // alternate group
-    w.write_all(&0u16.to_be_bytes()).map_err(io_err)?; // volume
-    w.write_all(&0u16.to_be_bytes()).map_err(io_err)?; // reserved
-    // Unity matrix
-    w.write_all(&0x00010000u32.to_be_bytes()).map_err(io_err)?;
-    w.write_all(&[0u8; 12]).map_err(io_err)?;
-    w.write_all(&0x00010000u32.to_be_bytes()).map_err(io_err)?;
-    w.write_all(&[0u8; 12]).map_err(io_err)?;
-    w.write_all(&0x40000000u32.to_be_bytes()).map_err(io_err)?;
-    // Width and height (16.16 fixed point)
-    w.write_all(&((config.width as u32) << 16).to_be_bytes()).map_err(io_err)?;
-    w.write_all(&((config.height as u32) << 16).to_be_bytes()).map_err(io_err)?;
-    Ok(())
-}
-
-fn write_mdia<W: Write>(
-    w: &mut W,
-    config: &H264EncoderConfig,
-    frame_count: u32,
-    timescale: u32,
-    duration: u32,
-    sps: &[u8],
-    pps: &[u8],
-    sample_sizes: &[u32],
-    mdat_offset: u32,
-    sync_samples: &[u32],
-) -> VideoResult<()> {
-    // Calculate mdia size
-    let mdhd_size = 32u32;
-    let hdlr_size = 45u32;
-    let minf_size = calculate_minf_size(frame_count, sample_sizes, sps, pps, sync_samples);
-    let mdia_size = 8 + mdhd_size + hdlr_size + minf_size;
-
-    w.write_all(&mdia_size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"mdia").map_err(io_err)?;
-
-    // mdhd
-    write_mdhd(w, timescale, duration)?;
-
-    // hdlr
-    write_hdlr(w)?;
-
-    // minf
-    write_minf(w, config, frame_count, timescale, sps, pps, sample_sizes, mdat_offset, sync_samples)?;
-
-    Ok(())
-}
-
-fn calculate_minf_size(frame_count: u32, sample_sizes: &[u32], sps: &[u8], pps: &[u8], sync_samples: &[u32]) -> u32 {
-    let vmhd_size = 20u32;
-    let dinf_size = 36u32;
-    let stbl_size = calculate_stbl_size(frame_count, sample_sizes, sps, pps, sync_samples);
-    8 + vmhd_size + dinf_size + stbl_size
-}
-
-fn calculate_stbl_size(frame_count: u32, _sample_sizes: &[u32], sps: &[u8], pps: &[u8], sync_samples: &[u32]) -> u32 {
-    let avcc_size = 11 + sps.len() as u32 + 3 + pps.len() as u32;
-    let avc1_size = 86 + 8 + avcc_size;
-    let stsd_size = 16 + avc1_size;
-    let stts_size = 24u32;
-    let stsz_size = 20 + (frame_count * 4);
-    let stsc_size = 28u32;
-    let stco_size = 20u32;
-    let stss_size = 16 + (sync_samples.len() as u32 * 4);
-    8 + stsd_size + stts_size + stsz_size + stsc_size + stco_size + stss_size
-}
-
-fn write_mdhd<W: Write>(w: &mut W, timescale: u32, duration: u32) -> VideoResult<()> {
-    let size = 32u32;
-    w.write_all(&size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"mdhd").map_err(io_err)?;
-    w.write_all(&[0, 0, 0, 0]).map_err(io_err)?; // version + flags
-    w.write_all(&0u32.to_be_bytes()).map_err(io_err)?; // creation time
-    w.write_all(&0u32.to_be_bytes()).map_err(io_err)?; // modification time
-    w.write_all(&timescale.to_be_bytes()).map_err(io_err)?;
-    w.write_all(&duration.to_be_bytes()).map_err(io_err)?;
-    w.write_all(&0x55C40000u32.to_be_bytes()).map_err(io_err)?; // language (und) + quality
-    Ok(())
-}
-
-fn write_hdlr<W: Write>(w: &mut W) -> VideoResult<()> {
-    let size = 45u32;
-    w.write_all(&size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"hdlr").map_err(io_err)?;
-    w.write_all(&[0, 0, 0, 0]).map_err(io_err)?; // version + flags
-    w.write_all(&0u32.to_be_bytes()).map_err(io_err)?; // pre-defined
-    w.write_all(b"vide").map_err(io_err)?; // handler type
-    w.write_all(&[0u8; 12]).map_err(io_err)?; // reserved
-    w.write_all(b"VideoHandler\0").map_err(io_err)?; // name
-    Ok(())
-}
-
-fn write_minf<W: Write>(
-    w: &mut W,
-    config: &H264EncoderConfig,
-    frame_count: u32,
-    _timescale: u32,
-    sps: &[u8],
-    pps: &[u8],
-    sample_sizes: &[u32],
-    mdat_offset: u32,
-    sync_samples: &[u32],
-) -> VideoResult<()> {
-    let minf_size = calculate_minf_size(frame_count, sample_sizes, sps, pps, sync_samples);
-
-    w.write_all(&minf_size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"minf").map_err(io_err)?;
-
-    // vmhd
-    write_vmhd(w)?;
-
-    // dinf
-    write_dinf(w)?;
-
-    // stbl
-    write_stbl(w, config, frame_count, _timescale, sps, pps, sample_sizes, mdat_offset, sync_samples)?;
-
-    Ok(())
-}
-
-fn write_vmhd<W: Write>(w: &mut W) -> VideoResult<()> {
-    let size = 20u32;
-    w.write_all(&size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"vmhd").map_err(io_err)?;
-    w.write_all(&[0, 0, 0, 1]).map_err(io_err)?; // version + flags
-    w.write_all(&[0u8; 8]).map_err(io_err)?; // graphics mode + opcolor
-    Ok(())
-}
-
-fn write_dinf<W: Write>(w: &mut W) -> VideoResult<()> {
-    // dinf
-    let dinf_size = 36u32;
-    w.write_all(&dinf_size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"dinf").map_err(io_err)?;
-
-    // dref
-    let dref_size = 28u32;
-    w.write_all(&dref_size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"dref").map_err(io_err)?;
-    w.write_all(&[0, 0, 0, 0]).map_err(io_err)?; // version + flags
-    w.write_all(&1u32.to_be_bytes()).map_err(io_err)?; // entry count
-
-    // url
-    let url_size = 12u32;
-    w.write_all(&url_size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"url ").map_err(io_err)?;
-    w.write_all(&[0, 0, 0, 1]).map_err(io_err)?; // version + flags (self-contained)
-
-    Ok(())
-}
-
-fn write_stbl<W: Write>(
-    w: &mut W,
-    config: &H264EncoderConfig,
-    frame_count: u32,
-    _timescale: u32,
-    sps: &[u8],
-    pps: &[u8],
-    sample_sizes: &[u32],
-    mdat_offset: u32,
-    sync_samples: &[u32],
-) -> VideoResult<()> {
-    let stbl_size = calculate_stbl_size(frame_count, sample_sizes, sps, pps, sync_samples);
-
-    w.write_all(&stbl_size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"stbl").map_err(io_err)?;
-
-    // stsd
-    write_stsd(w, config, sps, pps)?;
-
-    // stts
-    write_stts(w, frame_count)?;
-
-    // stsz
-    write_stsz(w, sample_sizes)?;
-
-    // stsc
-    write_stsc(w)?;
-
-    // stco
-    write_stco(w, mdat_offset)?;
-
-    // stss
-    write_stss(w, sync_samples)?;
-
-    Ok(())
-}
-
-fn write_stsd<W: Write>(w: &mut W, config: &H264EncoderConfig, sps: &[u8], pps: &[u8]) -> VideoResult<()> {
-    let avcc_size = 11 + sps.len() as u32 + 3 + pps.len() as u32;
-    let avc1_size = 86 + 8 + avcc_size;
-    let stsd_size = 16 + avc1_size;
-
-    w.write_all(&stsd_size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"stsd").map_err(io_err)?;
-    w.write_all(&[0, 0, 0, 0]).map_err(io_err)?; // version + flags
-    w.write_all(&1u32.to_be_bytes()).map_err(io_err)?; // entry count
-
-    // avc1
-    w.write_all(&avc1_size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"avc1").map_err(io_err)?;
-    w.write_all(&[0u8; 6]).map_err(io_err)?; // reserved
-    w.write_all(&1u16.to_be_bytes()).map_err(io_err)?; // data reference index
-    w.write_all(&[0u8; 16]).map_err(io_err)?; // pre-defined + reserved
-    w.write_all(&(config.width as u16).to_be_bytes()).map_err(io_err)?;
-    w.write_all(&(config.height as u16).to_be_bytes()).map_err(io_err)?;
-    w.write_all(&0x00480000u32.to_be_bytes()).map_err(io_err)?; // horizontal resolution (72 dpi)
-    w.write_all(&0x00480000u32.to_be_bytes()).map_err(io_err)?; // vertical resolution (72 dpi)
-    w.write_all(&0u32.to_be_bytes()).map_err(io_err)?; // reserved
-    w.write_all(&1u16.to_be_bytes()).map_err(io_err)?; // frame count
-    w.write_all(&[0u8; 32]).map_err(io_err)?; // compressor name
-    w.write_all(&0x0018u16.to_be_bytes()).map_err(io_err)?; // depth (24-bit)
-    w.write_all(&(-1i16).to_be_bytes()).map_err(io_err)?; // pre-defined
-
-    // avcC
-    write_avcc(w, sps, pps)?;
-
-    Ok(())
-}
-
-fn write_avcc<W: Write>(w: &mut W, sps: &[u8], pps: &[u8]) -> VideoResult<()> {
-    let avcc_size = 8 + 11 + sps.len() as u32 + 3 + pps.len() as u32;
-
-    w.write_all(&avcc_size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"avcC").map_err(io_err)?;
-
-    w.write_all(&[1]).map_err(io_err)?; // configuration version
-    w.write_all(&[sps.get(1).copied().unwrap_or(0)]).map_err(io_err)?; // profile
-    w.write_all(&[sps.get(2).copied().unwrap_or(0)]).map_err(io_err)?; // compatibility
-    w.write_all(&[sps.get(3).copied().unwrap_or(0)]).map_err(io_err)?; // level
-    w.write_all(&[0xFF]).map_err(io_err)?; // length size minus one (3 -> 4 bytes)
-    w.write_all(&[0xE1]).map_err(io_err)?; // num SPS (1)
-    w.write_all(&(sps.len() as u16).to_be_bytes()).map_err(io_err)?;
-    w.write_all(sps).map_err(io_err)?;
-    w.write_all(&[0x01]).map_err(io_err)?; // num PPS (1)
-    w.write_all(&(pps.len() as u16).to_be_bytes()).map_err(io_err)?;
-    w.write_all(pps).map_err(io_err)?;
-
-    Ok(())
-}
-
-fn write_stts<W: Write>(w: &mut W, frame_count: u32) -> VideoResult<()> {
-    let size = 24u32;
-    w.write_all(&size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"stts").map_err(io_err)?;
-    w.write_all(&[0, 0, 0, 0]).map_err(io_err)?; // version + flags
-    w.write_all(&1u32.to_be_bytes()).map_err(io_err)?; // entry count
-    w.write_all(&frame_count.to_be_bytes()).map_err(io_err)?; // sample count
-    w.write_all(&1000u32.to_be_bytes()).map_err(io_err)?; // sample delta (constant)
-    Ok(())
-}
-
-fn write_stsz<W: Write>(w: &mut W, sample_sizes: &[u32]) -> VideoResult<()> {
-    let size = 20 + (sample_sizes.len() as u32 * 4);
-    w.write_all(&size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"stsz").map_err(io_err)?;
-    w.write_all(&[0, 0, 0, 0]).map_err(io_err)?; // version + flags
-    w.write_all(&0u32.to_be_bytes()).map_err(io_err)?; // sample size (0 = variable)
-    w.write_all(&(sample_sizes.len() as u32).to_be_bytes()).map_err(io_err)?;
-    for &s in sample_sizes {
-        w.write_all(&s.to_be_bytes()).map_err(io_err)?;
-    }
-    Ok(())
-}
-
-fn write_stsc<W: Write>(w: &mut W) -> VideoResult<()> {
-    let size = 28u32;
-    w.write_all(&size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"stsc").map_err(io_err)?;
-    w.write_all(&[0, 0, 0, 0]).map_err(io_err)?; // version + flags
-    w.write_all(&1u32.to_be_bytes()).map_err(io_err)?; // entry count
-    w.write_all(&1u32.to_be_bytes()).map_err(io_err)?; // first chunk
-    w.write_all(&1u32.to_be_bytes()).map_err(io_err)?; // samples per chunk (all in one chunk)
-    w.write_all(&1u32.to_be_bytes()).map_err(io_err)?; // sample description index
-    Ok(())
-}
-
-fn write_stco<W: Write>(w: &mut W, mdat_offset: u32) -> VideoResult<()> {
-    let size = 20u32;
-    w.write_all(&size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"stco").map_err(io_err)?;
-    w.write_all(&[0, 0, 0, 0]).map_err(io_err)?; // version + flags
-    w.write_all(&1u32.to_be_bytes()).map_err(io_err)?; // entry count
-    w.write_all(&mdat_offset.to_be_bytes()).map_err(io_err)?; // chunk offset
-    Ok(())
-}
-
-fn write_stss<W: Write>(w: &mut W, sync_samples: &[u32]) -> VideoResult<()> {
-    let size = 16 + (sync_samples.len() as u32 * 4);
-    w.write_all(&size.to_be_bytes()).map_err(io_err)?;
-    w.write_all(b"stss").map_err(io_err)?;
-    w.write_all(&[0, 0, 0, 0]).map_err(io_err)?; // version + flags
-    w.write_all(&(sync_samples.len() as u32).to_be_bytes()).map_err(io_err)?;
-    for &s in sync_samples {
-        w.write_all(&s.to_be_bytes()).map_err(io_err)?;
-    }
-    Ok(())
-}
-
-fn io_err(e: std::io::Error) -> VideoError {
-    VideoError::Io {
-        message: e.to_string(),
+#[cfg(test)]
+mod tests {
+    use image::{DynamicImage, Rgba, RgbaImage};
+    use tempfile::tempdir;
+
+    use crate::video::container::open_container;
+    use crate::video::VideoCodec;
+
+    use super::{H264EncoderConfig, encode_h264_to_mp4};
+
+    #[test]
+    fn h264_mp4_output_round_trips_through_mp4_demuxer() {
+        let mut frame_a = RgbaImage::new(32, 24);
+        let mut frame_b = RgbaImage::new(32, 24);
+
+        for (x, y, pixel) in frame_a.enumerate_pixels_mut() {
+            *pixel = Rgba([(x * 7) as u8, (y * 9) as u8, 48, 255]);
+        }
+        for (x, y, pixel) in frame_b.enumerate_pixels_mut() {
+            *pixel = Rgba([48, (x * 7) as u8, (y * 9) as u8, 255]);
+        }
+
+        let images = vec![
+            DynamicImage::ImageRgba8(frame_a),
+            DynamicImage::ImageRgba8(frame_b),
+        ];
+
+        let tempdir = tempdir().unwrap();
+        let output = tempdir.path().join("roundtrip.mp4");
+
+        encode_h264_to_mp4(
+            images.iter(),
+            &output,
+            H264EncoderConfig::new(32, 24).with_frame_rate(2.0),
+        )
+        .unwrap();
+
+        let mut demuxer = open_container(&output).unwrap();
+        let video_info = demuxer.video_info().unwrap();
+        assert_eq!(video_info.codec, VideoCodec::H264);
+        assert_eq!(video_info.width, 32);
+        assert_eq!(video_info.height, 24);
+
+        let mut packet_count = 0usize;
+        while let Some(packet) = demuxer.next_video_packet().unwrap() {
+            assert!(!packet.data.is_empty());
+            packet_count += 1;
+        }
+
+        assert_eq!(packet_count, 2);
     }
 }
+

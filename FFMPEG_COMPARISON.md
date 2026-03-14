@@ -1,5 +1,8 @@
 # xeno-lib vs FFmpeg: Comprehensive Feature Comparison
 
+> Status note (March 5, 2026): this document is a strategic comparison.
+> For objective, CI-gated parity status use `benchmarks/ffmpeg/parity_spec.json` and generated output at `benchmarks/ffmpeg/results/latest.md`.
+
 ## Executive Summary
 
 **Goal**: Make xeno-lib/xeno-edit a pure Rust alternative to FFmpeg that is **faster, safer, and AI-powered**.

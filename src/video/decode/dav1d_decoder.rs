@@ -10,7 +10,7 @@ use dav1d::{Decoder, Settings};
 
 use crate::video::VideoError;
 
-use super::{DecodeCodec, DecodedFrame, DecoderCapabilities, OutputFormat};
+use super::{DecodedFrame, DecoderCapabilities, OutputFormat};
 
 /// Software AV1 decoder using dav1d.
 pub struct Dav1dDecoder {
@@ -92,7 +92,7 @@ impl Dav1dDecoder {
         let mut frames = Vec::new();
 
         // Read and decode frames
-        for frame_idx in 0..frame_count {
+        for _ in 0..frame_count {
             // Read frame header (12 bytes)
             let mut frame_header = [0u8; 12];
             if reader.read_exact(&mut frame_header).is_err() {

@@ -1,0 +1,484 @@
+{
+  "category_order": [
+    "Video Codecs (Encode)",
+    "Video Codecs (Decode)",
+    "Execution Backends",
+    "Containers",
+    "Audio Codecs (Decode)",
+    "Audio Codecs (Encode)",
+    "Image/Video Filters",
+    "CLI Surface"
+  ],
+  "entries": [
+    {
+      "id": "video_encode_av1",
+      "category": "Video Codecs (Encode)",
+      "capability_name": "AV1 encoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "xeno-edit video-encode / av1",
+      "type": "capability_contains",
+      "capability": "encode_codecs",
+      "value": "av1"
+    },
+    {
+      "id": "video_encode_h264",
+      "category": "Video Codecs (Encode)",
+      "capability_name": "H.264 encoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "xeno-edit h264-encode",
+      "type": "capability_contains",
+      "capability": "encode_codecs",
+      "value": "h264"
+    },
+    {
+      "id": "video_encode_h265",
+      "category": "Video Codecs (Encode)",
+      "capability_name": "H.265/HEVC encoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "Not available in xeno-edit",
+      "type": "capability_contains",
+      "capability": "encode_codecs",
+      "value": "h265"
+    },
+    {
+      "id": "video_encode_vp9",
+      "category": "Video Codecs (Encode)",
+      "capability_name": "VP9 encoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "Not available in xeno-edit",
+      "type": "capability_contains",
+      "capability": "encode_codecs",
+      "value": "vp9"
+    },
+    {
+      "id": "video_decode_av1",
+      "category": "Video Codecs (Decode)",
+      "capability_name": "AV1 decoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "NVDEC + dav1d fallback",
+      "type": "capability_contains",
+      "capability": "decode_codecs",
+      "value": "av1",
+      "notes": "Software fallback availability is tracked separately via capabilities.sw_av1_decode."
+    },
+    {
+      "id": "video_decode_h264",
+      "category": "Video Codecs (Decode)",
+      "capability_name": "H.264 decoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "NVDEC + OpenH264 fallback",
+      "type": "capability_contains",
+      "capability": "decode_codecs",
+      "value": "h264"
+    },
+    {
+      "id": "video_decode_h265",
+      "category": "Video Codecs (Decode)",
+      "capability_name": "H.265 decoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "NVDEC-dependent path",
+      "type": "capability_contains",
+      "capability": "decode_codecs",
+      "value": "h265",
+      "status_if_present": "partial",
+      "notes": "Current CLI build relies on GPU decode path."
+    },
+    {
+      "id": "video_decode_vp8",
+      "category": "Video Codecs (Decode)",
+      "capability_name": "VP8 decoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "NVDEC-dependent path",
+      "type": "capability_contains",
+      "capability": "decode_codecs",
+      "value": "vp8",
+      "status_if_present": "partial",
+      "notes": "Current CLI build relies on GPU decode path."
+    },
+    {
+      "id": "video_decode_vp9",
+      "category": "Video Codecs (Decode)",
+      "capability_name": "VP9 decoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "NVDEC-dependent path",
+      "type": "capability_contains",
+      "capability": "decode_codecs",
+      "value": "vp9",
+      "status_if_present": "partial",
+      "notes": "Current CLI build relies on GPU decode path."
+    },
+    {
+      "id": "backend_gpu_encode",
+      "category": "Execution Backends",
+      "capability_name": "Hardware video encode",
+      "ffmpeg_reference": "NVENC/QSV/AMF/VideoToolbox/VAAPI",
+      "xeno_reference": "capabilities.gpu_encode",
+      "type": "capability_bool",
+      "capability": "gpu_encode"
+    },
+    {
+      "id": "backend_sw_av1_decode",
+      "category": "Execution Backends",
+      "capability_name": "Software AV1 decode fallback",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "capabilities.sw_av1_decode",
+      "type": "capability_bool",
+      "capability": "sw_av1_decode"
+    },
+    {
+      "id": "backend_sw_h264_decode",
+      "category": "Execution Backends",
+      "capability_name": "Software H.264 decode fallback",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "capabilities.sw_h264_decode",
+      "type": "capability_bool",
+      "capability": "sw_h264_decode"
+    },
+    {
+      "id": "container_mux_ivf",
+      "category": "Containers",
+      "capability_name": "IVF muxing",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "xeno-edit video-encode output.ivf",
+      "type": "capability_contains",
+      "capability": "mux_formats",
+      "value": "ivf"
+    },
+    {
+      "id": "container_mux_mp4",
+      "category": "Containers",
+      "capability_name": "MP4 muxing",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "xeno-edit h264-encode output.mp4",
+      "type": "capability_contains",
+      "capability": "mux_formats",
+      "value": "mp4"
+    },
+    {
+      "id": "container_mux_av1_mp4",
+      "category": "Containers",
+      "capability_name": "AV1 in MP4 muxing",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "video-encode currently documents IVF-only output",
+      "type": "command_help_contains",
+      "command": "video-encode",
+      "contains": ".ivf for AV1 bitstream",
+      "status_if_present": "missing",
+      "status_if_absent": "have",
+      "notes": "Current CLI cannot emit AV1-in-MP4 directly."
+    },
+    {
+      "id": "container_mux_webm",
+      "category": "Containers",
+      "capability_name": "WebM muxing",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "Not available",
+      "type": "capability_contains",
+      "capability": "mux_formats",
+      "value": "webm"
+    },
+    {
+      "id": "container_mux_mkv",
+      "category": "Containers",
+      "capability_name": "MKV muxing",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "Not available",
+      "type": "capability_contains",
+      "capability": "mux_formats",
+      "value": "mkv"
+    },
+    {
+      "id": "container_demux_mp4",
+      "category": "Containers",
+      "capability_name": "MP4 demuxing",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "xeno-edit video-info / transcode",
+      "type": "capability_contains",
+      "capability": "demux_formats",
+      "value": "mp4"
+    },
+    {
+      "id": "container_demux_ivf",
+      "category": "Containers",
+      "capability_name": "IVF demuxing",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "xeno-edit video-info / video-frames",
+      "type": "capability_contains",
+      "capability": "demux_formats",
+      "value": "ivf"
+    },
+    {
+      "id": "container_demux_mkv",
+      "category": "Containers",
+      "capability_name": "MKV demuxing",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "Metadata-oriented demux",
+      "type": "capability_contains",
+      "capability": "demux_formats",
+      "value": "mkv",
+      "status_if_present": "partial",
+      "notes": "Packet/frame iteration is not fully implemented."
+    },
+    {
+      "id": "container_demux_webm",
+      "category": "Containers",
+      "capability_name": "WebM demuxing",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "Metadata-oriented demux",
+      "type": "capability_contains",
+      "capability": "demux_formats",
+      "value": "webm",
+      "status_if_present": "partial",
+      "notes": "Packet/frame iteration is not fully implemented."
+    },
+    {
+      "id": "container_demux_avi",
+      "category": "Containers",
+      "capability_name": "AVI demuxing",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "Not exposed in xeno-edit capabilities",
+      "type": "capability_contains",
+      "capability": "demux_formats",
+      "value": "avi"
+    },
+    {
+      "id": "audio_decode_mp3",
+      "category": "Audio Codecs (Decode)",
+      "capability_name": "MP3 decoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "Symphonia decode path",
+      "type": "capability_contains",
+      "capability": "audio_codecs",
+      "value": "mp3"
+    },
+    {
+      "id": "audio_decode_aac",
+      "category": "Audio Codecs (Decode)",
+      "capability_name": "AAC decoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "Symphonia decode path",
+      "type": "capability_contains",
+      "capability": "audio_codecs",
+      "value": "aac"
+    },
+    {
+      "id": "audio_decode_flac",
+      "category": "Audio Codecs (Decode)",
+      "capability_name": "FLAC decoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "Symphonia decode path",
+      "type": "capability_contains",
+      "capability": "audio_codecs",
+      "value": "flac"
+    },
+    {
+      "id": "audio_decode_vorbis",
+      "category": "Audio Codecs (Decode)",
+      "capability_name": "Vorbis decoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "Symphonia decode path",
+      "type": "capability_contains",
+      "capability": "audio_codecs",
+      "value": "vorbis"
+    },
+    {
+      "id": "audio_decode_opus",
+      "category": "Audio Codecs (Decode)",
+      "capability_name": "Opus decoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "Symphonia decode path",
+      "type": "capability_contains",
+      "capability": "audio_codecs",
+      "value": "opus"
+    },
+    {
+      "id": "audio_decode_wav",
+      "category": "Audio Codecs (Decode)",
+      "capability_name": "WAV/PCM decoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "Symphonia decode path",
+      "type": "capability_contains",
+      "capability": "audio_codecs",
+      "value": "wav"
+    },
+    {
+      "id": "audio_encode_wav",
+      "category": "Audio Codecs (Encode)",
+      "capability_name": "WAV encoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "capabilities.audio_encode_formats",
+      "type": "capability_contains",
+      "capability": "audio_encode_formats",
+      "value": "wav"
+    },
+    {
+      "id": "audio_encode_flac",
+      "category": "Audio Codecs (Encode)",
+      "capability_name": "FLAC encoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "capabilities.audio_encode_formats",
+      "type": "capability_contains",
+      "capability": "audio_encode_formats",
+      "value": "flac"
+    },
+    {
+      "id": "audio_encode_opus",
+      "category": "Audio Codecs (Encode)",
+      "capability_name": "Opus encoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "capabilities.audio_encode_formats",
+      "type": "capability_contains",
+      "capability": "audio_encode_formats",
+      "value": "opus"
+    },
+    {
+      "id": "audio_encode_aac",
+      "category": "Audio Codecs (Encode)",
+      "capability_name": "AAC encoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "capabilities.audio_encode_formats",
+      "type": "capability_contains",
+      "capability": "audio_encode_formats",
+      "value": "aac"
+    },
+    {
+      "id": "audio_encode_mp3",
+      "category": "Audio Codecs (Encode)",
+      "capability_name": "MP3 encoding",
+      "ffmpeg_reference": "Supported",
+      "xeno_reference": "capabilities.audio_encode_formats",
+      "type": "capability_contains",
+      "capability": "audio_encode_formats",
+      "value": "mp3"
+    },
+    {
+      "id": "filter_resize",
+      "category": "Image/Video Filters",
+      "capability_name": "Resize/scale",
+      "ffmpeg_reference": "scale filter",
+      "xeno_reference": "transforms.resize",
+      "type": "capability_contains",
+      "capability": "transforms",
+      "value": "resize"
+    },
+    {
+      "id": "filter_rotate",
+      "category": "Image/Video Filters",
+      "capability_name": "Rotate",
+      "ffmpeg_reference": "rotate/transpose filters",
+      "xeno_reference": "transforms.rotate",
+      "type": "capability_contains",
+      "capability": "transforms",
+      "value": "rotate"
+    },
+    {
+      "id": "filter_flip",
+      "category": "Image/Video Filters",
+      "capability_name": "Flip",
+      "ffmpeg_reference": "hflip/vflip filters",
+      "xeno_reference": "transforms.flip",
+      "type": "capability_contains",
+      "capability": "transforms",
+      "value": "flip"
+    },
+    {
+      "id": "filter_crop",
+      "category": "Image/Video Filters",
+      "capability_name": "Crop",
+      "ffmpeg_reference": "crop filter",
+      "xeno_reference": "transforms.crop",
+      "type": "capability_contains",
+      "capability": "transforms",
+      "value": "crop"
+    },
+    {
+      "id": "filter_blur",
+      "category": "Image/Video Filters",
+      "capability_name": "Blur",
+      "ffmpeg_reference": "gblur/boxblur filters",
+      "xeno_reference": "transforms.blur",
+      "type": "capability_contains",
+      "capability": "transforms",
+      "value": "blur"
+    },
+    {
+      "id": "filter_sharpen",
+      "category": "Image/Video Filters",
+      "capability_name": "Sharpen",
+      "ffmpeg_reference": "unsharp filter",
+      "xeno_reference": "transforms.sharpen",
+      "type": "capability_contains",
+      "capability": "transforms",
+      "value": "sharpen"
+    },
+    {
+      "id": "filter_brightness",
+      "category": "Image/Video Filters",
+      "capability_name": "Brightness",
+      "ffmpeg_reference": "eq=brightness",
+      "xeno_reference": "transforms.brightness",
+      "type": "capability_contains",
+      "capability": "transforms",
+      "value": "brightness"
+    },
+    {
+      "id": "filter_contrast",
+      "category": "Image/Video Filters",
+      "capability_name": "Contrast",
+      "ffmpeg_reference": "eq=contrast",
+      "xeno_reference": "transforms.contrast",
+      "type": "capability_contains",
+      "capability": "transforms",
+      "value": "contrast"
+    },
+    {
+      "id": "filter_saturation",
+      "category": "Image/Video Filters",
+      "capability_name": "Saturation",
+      "ffmpeg_reference": "eq=saturation",
+      "xeno_reference": "transforms.saturation",
+      "type": "capability_contains",
+      "capability": "transforms",
+      "value": "saturation"
+    },
+    {
+      "id": "filter_hue",
+      "category": "Image/Video Filters",
+      "capability_name": "Hue",
+      "ffmpeg_reference": "hue filter",
+      "xeno_reference": "video-transcode --hue",
+      "type": "command_help_contains",
+      "command": "video-transcode",
+      "contains": "--hue"
+    },
+    {
+      "id": "filter_gamma",
+      "category": "Image/Video Filters",
+      "capability_name": "Gamma",
+      "ffmpeg_reference": "eq=gamma",
+      "xeno_reference": "video-transcode --gamma",
+      "type": "command_help_contains",
+      "command": "video-transcode",
+      "contains": "--gamma"
+    },
+    {
+      "id": "cli_convert_svg",
+      "category": "CLI Surface",
+      "capability_name": "Raster to SVG convert command",
+      "ffmpeg_reference": "Not native (third-party tooling)",
+      "xeno_reference": "xeno-edit convert svg",
+      "type": "command_help_contains",
+      "command": "convert",
+      "contains": "svg"
+    },
+    {
+      "id": "cli_recenter",
+      "category": "CLI Surface",
+      "capability_name": "Transparent subject recenter command",
+      "ffmpeg_reference": "No direct equivalent",
+      "xeno_reference": "xeno-edit recenter",
+      "type": "command_exists",
+      "command": "recenter"
+    }
+  ]
+}

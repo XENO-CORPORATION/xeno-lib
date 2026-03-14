@@ -1,0 +1,3 @@
+# Media and CLI paths can legitimately carry many configuration parameters,
+# especially transcode, encode, and model-loading entry points.
+too-many-arguments-threshold = 12

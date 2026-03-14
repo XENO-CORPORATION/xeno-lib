@@ -93,6 +93,9 @@ pub use decode::{
     VideoDecoder,
 };
 
+#[cfg(all(feature = "video-decode", feature = "video-decode-sw"))]
+pub use decode::OpenH264Decoder;
+
 #[cfg(feature = "av-mux")]
 pub use mux::{
     annex_b_to_avcc, extract_sps_pps, AudioCodecType, AudioConfig, AvMuxConfig, AvMuxer,

@@ -43,7 +43,15 @@ jobs:
         shell: pwsh
         run: |
           choco install nasm --yes --no-progress
+          choco install pkgconfiglite --yes --no-progress
+          git clone https://github.com/microsoft/vcpkg "$env:RUNNER_TEMP\\vcpkg"
+          & "$env:RUNNER_TEMP\\vcpkg\\bootstrap-vcpkg.bat"
+          & "$env:RUNNER_TEMP\\vcpkg\\vcpkg.exe" install dav1d:x64-windows-static
+          "PKG_CONFIG_PATH=$env:RUNNER_TEMP\\vcpkg\\installed\\x64-windows-static\\lib\\pkgconfig" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "PKG_CONFIG_ALL_STATIC=1" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "VCPKG_ROOT=$env:RUNNER_TEMP\\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append
           where.exe nasm
+          where.exe pkg-config
 
       - name: Check xeno-lib all features (deny warnings)
         env:
@@ -54,6 +62,33 @@ jobs:
         env:
           RUSTFLAGS: -D warnings
         run: cargo check --manifest-path xeno-edit/Cargo.toml --locked
+
+      - name: Runtime smoke check (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cargo build --manifest-path xeno-edit/Cargo.toml --release --locked
+          $bin = "xeno-edit\target\release\xeno-edit.exe"
+          & $bin capabilities
+
+          $sampleMp4 = Join-Path $env:RUNNER_TEMP "smoke-sample.mp4"
+          $sampleIvf = Join-Path $env:RUNNER_TEMP "smoke-sample.ivf"
+          $sampleMp4RoundTrip = Join-Path $env:RUNNER_TEMP "smoke-sample-roundtrip.mp4"
+
+          & $bin h264-encode $sampleMp4 tests\goldens\base.png tests\goldens\flip_horizontal.png --fps 2 --bitrate 500
+          if (-not (Test-Path $sampleMp4)) {
+            throw "Expected H.264 smoke sample was not created."
+          }
+
+          & $bin video-transcode $sampleMp4 $sampleIvf --codec av1 --max-frames 2
+          if (-not (Test-Path $sampleIvf)) {
+            throw "Expected AV1 transcode output was not created."
+          }
+
+          & $bin video-transcode $sampleMp4 $sampleMp4RoundTrip --codec h264 --max-frames 2
+          if (-not (Test-Path $sampleMp4RoundTrip)) {
+            throw "Expected H.264 round-trip transcode output was not created."
+          }
 
   test-linux:
     name: Tests (Ubuntu)
@@ -134,3 +169,42 @@ jobs:
           path: |
             benchmarks/competitors/results/latest.json
             benchmarks/competitors/results/linux-baseline-candidate.json
+
+  ffmpeg-parity:
+    name: FFmpeg Parity Matrix (Ubuntu)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install parity dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nasm pkg-config ffmpeg
+
+      - name: Build xeno-edit (release)
+        run: cargo build --manifest-path xeno-edit/Cargo.toml --release --locked
+
+      - name: Generate parity matrix and gate regressions
+        run: |
+          python3 tools/ffmpeg-parity/generate_matrix.py \
+            --xeno-bin xeno-edit/target/release/xeno-edit \
+            --spec benchmarks/ffmpeg/parity_spec.json \
+            --output-json benchmarks/ffmpeg/results/latest.json \
+            --output-md benchmarks/ffmpeg/results/latest.md \
+            --baseline benchmarks/ffmpeg/baseline.json \
+            --baseline-candidate benchmarks/ffmpeg/results/baseline-candidate.json \
+            --fail-on-regression
+
+      - name: Upload parity artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-parity-report
+          path: |
+            benchmarks/ffmpeg/results/latest.json
+            benchmarks/ffmpeg/results/latest.md
+            benchmarks/ffmpeg/results/baseline-candidate.json

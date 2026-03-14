@@ -321,8 +321,8 @@ xeno-lib = { version = "0.1", features = ["full"] }
 | `text-overlay` | Text rendering on images |
 
 Notes for `video-decode-sw`:
-- Currently supported on non-Windows targets.
 - Linux: install `libdav1d-dev` and `pkg-config` (or set `SYSTEM_DEPS_DAV1D_BUILD_INTERNAL=always`).
+- Windows: install `pkg-config` and `dav1d:x64-windows-static` via `vcpkg`, set `PKG_CONFIG_PATH` to the static triplet `pkgconfig` directory, and set `PKG_CONFIG_ALL_STATIC=1`.
 - `cargo test --all-features` on supported targets will fail until those prerequisites are available.
 
 ### Feature Bundles
@@ -367,7 +367,11 @@ Download ONNX models to `~/.xeno-lib/models/`:
 
 ## FFmpeg Comparison
 
-xeno-lib achieves **~95% feature parity** with FFmpeg for common operations, plus **17 AI capabilities FFmpeg doesn't have**.
+FFmpeg parity is tracked by a generated, spec-driven matrix:
+- Spec: `benchmarks/ffmpeg/parity_spec.json`
+- Strategic roadmap: `benchmarks/ffmpeg/OVERCOME_TRACKER.md`
+- Current generated report: `benchmarks/ffmpeg/results/latest.md` (CI artifact)
+- Regression baseline: `benchmarks/ffmpeg/baseline.json`
 
 ### What xeno-lib Does Better
 
@@ -506,6 +510,21 @@ cargo run --manifest-path tools/competitive-bench/Cargo.toml -- gate \
 
 Use strict competitor-relative thresholds (mean/p95 + PSNR/SSIM envelopes) from `benchmarks/competitors/README.md` for CI-grade gating.
 
+### FFmpeg Parity Matrix
+
+Track objective FFmpeg parity and gate capability regressions:
+
+```bash
+python tools/ffmpeg-parity/generate_matrix.py \
+  --xeno-bin xeno-edit/target/release/xeno-edit \
+  --spec benchmarks/ffmpeg/parity_spec.json \
+  --output-json benchmarks/ffmpeg/results/latest.json \
+  --output-md benchmarks/ffmpeg/results/latest.md \
+  --baseline benchmarks/ffmpeg/baseline.json \
+  --baseline-candidate benchmarks/ffmpeg/results/baseline-candidate.json \
+  --fail-on-regression
+```
+
 ### Test Coverage
 
 - **82+ unit tests** covering all modules
@@ -551,16 +570,34 @@ Full CLI reference (usage, aliases, and examples): `xeno-edit/CLI_COMMANDS.md`
 
 ## License
 
-MIT
+Licensed under the [Apache License 2.0](LICENSE).
+
+Important: source code in this repository is Apache-2.0, but optional models,
+runtime backends, codecs, and external toolchains may have their own licenses,
+patent terms, or redistribution rules. Review upstream terms before shipping a
+commercial product that enables those components.
 
 ---
 
 ## Contributing
 
-Contributions welcome! Please ensure:
-- All tests pass (`cargo test --features full`)
-- Code is formatted (`cargo fmt`)
-- No clippy warnings (`cargo clippy`)
+Contributions are welcome. Before your first PR can be merged, you must agree
+to the terms in [CLA.md](CLA.md).
+
+See the full project policies here:
+
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- [SECURITY.md](SECURITY.md)
+- [RELEASE.md](RELEASE.md)
+- [CHANGELOG.md](CHANGELOG.md)
+
+Baseline expectations for contributions:
+
+- All relevant tests pass (`cargo test --all-features`)
+- Code is formatted (`cargo fmt --check`)
+- No new clippy warnings in touched areas
+- Docs, CLI help, and parity tracking are updated when behavior changes
 
 ---
 
