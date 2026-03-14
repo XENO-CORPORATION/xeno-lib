@@ -2,6 +2,13 @@
 name = "xeno-lib"
 version = "0.1.0"
 edition = "2021"
+description = "Pure Rust multimedia processing library with AI-powered image, audio, and video workflows"
+license = "Apache-2.0"
+repository = "https://github.com/XENO-CORPORATION/xeno-lib"
+homepage = "https://github.com/XENO-CORPORATION/xeno-lib"
+readme = "README.md"
+keywords = ["multimedia", "image", "video", "audio", "ai"]
+categories = ["graphics", "multimedia::images", "multimedia::video", "multimedia::audio"]
 
 [dependencies]
 image = { version = "0.25", default-features = true }
@@ -19,7 +26,7 @@ ndarray = { version = "0.16", optional = true }
 rav1e = { version = "0.7", optional = true }
 mp4 = { version = "0.14", optional = true }
 
-# H.264 encoding via OpenH264 (Cisco's open-source H.264 codec)
+# H.264 encode/decode via OpenH264 (Cisco's open-source H.264 codec)
 # The "source" feature bundles the C source and compiles via cc
 # Performance: ~3x faster with NASM in PATH
 openh264 = { version = "0.9", optional = true, default-features = false, features = ["source"] }
@@ -43,6 +50,7 @@ rubato = { version = "0.15", optional = true }  # Audio resampling
 hound = { version = "3.5", optional = true }     # WAV encoding (pure Rust)
 flacenc = { version = "0.5.1", optional = true }   # FLAC encoding (pure Rust)
 audiopus = { version = "0.2", optional = true }   # Opus encoding (libopus bindings)
+dav1d = { version = "0.10", optional = true }  # AV1 software decoder (requires system dav1d)
 
 # MP4 muxing support
 bytes = { version = "1.5", optional = true }     # For MP4 sample data
@@ -56,9 +64,6 @@ ab_glyph = { version = "0.2", optional = true }   # Font loading and glyph raste
 # Raster -> Vector (SVG)
 vtracer = { version = "0.6.5", optional = true }   # High-quality image vectorization to SVG
 
-[target.'cfg(not(target_os = "windows"))'.dependencies]
-dav1d = { version = "0.10", optional = true }  # AV1 software decoder
-
 [patch.crates-io]
 flacenc = { path = "vendor/flacenc" }
 
@@ -71,10 +76,10 @@ background-removal-cuda = ["background-removal", "ort?/cuda"]
 # Video features (Phase 2)
 video = []
 video-encode = ["video", "rav1e", "mp4"]
-video-encode-h264 = ["video", "openh264", "mp4"]  # H.264 encoding via OpenH264
+video-encode-h264 = ["video", "dep:openh264", "mp4"]  # H.264 encoding via OpenH264
 video-encode-full = ["video-encode", "video-encode-h264"]  # All encoders
 video-decode = ["video", "libloading"]
-video-decode-sw = ["video", "dep:dav1d"]  # Software AV1 decoder (CPU, non-Windows)
+video-decode-sw = ["video", "dep:dav1d", "dep:openh264"]  # Software AV1 + H.264 decoders
 video-full = ["video-encode-full", "video-decode", "video-decode-sw"]
 
 # Audio features (Phase 2)
@@ -82,7 +87,7 @@ audio = ["symphonia"]
 audio-resample = ["audio", "rubato"]
 audio-encode = ["hound"]                          # WAV encoding
 audio-encode-flac = ["audio-encode", "flacenc"]   # FLAC encoding (pure Rust)
-audio-encode-opus = ["audiopus"]                  # Opus encoding (requires libopus)
+audio-encode-opus = ["audio-encode", "audiopus"]  # Opus encoding (requires libopus)
 audio-full = ["audio", "audio-resample", "audio-encode-flac", "audio-encode-opus"]
 
 # A/V muxing features

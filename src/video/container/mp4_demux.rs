@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
-use mp4::{Mp4Reader, TrackType, MediaType};
+use mp4::{MediaType, Mp4Reader, TrackType};
 
 use crate::video::{AudioCodec, VideoCodec, VideoError};
 
@@ -20,10 +20,104 @@ pub struct Mp4Demuxer {
     audio_track_id: Option<u32>,
     video_info: Option<VideoStreamInfo>,
     audio_info: Option<AudioStreamInfo>,
+    h264_nal_length_size: Option<usize>,
     video_sample_idx: u32,
     audio_sample_idx: u32,
     video_sample_count: u32,
     audio_sample_count: u32,
+}
+
+fn append_annex_b_nal(buffer: &mut Vec<u8>, nal: &[u8]) {
+    buffer.extend_from_slice(&[0, 0, 0, 1]);
+    buffer.extend_from_slice(nal);
+}
+
+fn build_h264_parameter_sets(track: &mp4::Mp4Track) -> Vec<u8> {
+    let mut data = Vec::new();
+
+    if let Ok(sps) = track.sequence_parameter_set() {
+        append_annex_b_nal(&mut data, sps);
+    }
+    if let Ok(pps) = track.picture_parameter_set() {
+        append_annex_b_nal(&mut data, pps);
+    }
+
+    data
+}
+
+fn avcc_sample_to_annex_b(
+    sample: &[u8],
+    nal_length_size: usize,
+    parameter_sets: Option<&[u8]>,
+) -> Result<Vec<u8>, VideoError> {
+    if sample.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    if sample.starts_with(&[0, 0, 1]) || sample.starts_with(&[0, 0, 0, 1]) {
+        return Ok(sample.to_vec());
+    }
+
+    if !(1..=4).contains(&nal_length_size) {
+        return Err(VideoError::Container {
+            message: format!("Unsupported H.264 NAL length size: {}", nal_length_size),
+        });
+    }
+
+    let mut offset = 0usize;
+    let mut converted =
+        Vec::with_capacity(sample.len() + parameter_sets.map_or(0, |data| data.len()));
+
+    if let Some(parameter_sets) = parameter_sets {
+        converted.extend_from_slice(parameter_sets);
+    }
+
+    while offset + nal_length_size <= sample.len() {
+        let nal_len = match nal_length_size {
+            1 => sample[offset] as usize,
+            2 => u16::from_be_bytes([sample[offset], sample[offset + 1]]) as usize,
+            3 => {
+                ((sample[offset] as usize) << 16)
+                    | ((sample[offset + 1] as usize) << 8)
+                    | sample[offset + 2] as usize
+            }
+            4 => u32::from_be_bytes([
+                sample[offset],
+                sample[offset + 1],
+                sample[offset + 2],
+                sample[offset + 3],
+            ]) as usize,
+            _ => unreachable!(),
+        };
+        offset += nal_length_size;
+
+        if nal_len == 0 {
+            continue;
+        }
+        if offset + nal_len > sample.len() {
+            return Err(VideoError::Container {
+                message: format!(
+                    "Invalid H.264 sample: NAL unit length {} exceeds remaining bytes {}",
+                    nal_len,
+                    sample.len().saturating_sub(offset)
+                ),
+            });
+        }
+
+        append_annex_b_nal(&mut converted, &sample[offset..offset + nal_len]);
+        offset += nal_len;
+    }
+
+    if offset != sample.len() {
+        return Err(VideoError::Container {
+            message: format!(
+                "Invalid H.264 sample: trailing {} bytes after AVCC conversion",
+                sample.len() - offset
+            ),
+        });
+    }
+
+    Ok(converted)
 }
 
 impl Mp4Demuxer {
@@ -43,6 +137,7 @@ impl Mp4Demuxer {
         let mut audio_track_id = None;
         let mut video_info = None;
         let mut audio_info = None;
+        let mut h264_nal_length_size = None;
         let mut video_sample_count = 0u32;
         let mut audio_sample_count = 0u32;
 
@@ -82,15 +177,11 @@ impl Mp4Demuxer {
                         // Get codec extra data (SPS/PPS for H.264)
                         let extra_data = match track.media_type() {
                             Ok(MediaType::H264) => {
-                                // Combine SPS and PPS with length prefixes
-                                let mut data = Vec::new();
-                                if let Ok(sps) = track.sequence_parameter_set() {
-                                    data.extend_from_slice(sps);
+                                if let Some(avc1) = track.trak.mdia.minf.stbl.stsd.avc1.as_ref() {
+                                    h264_nal_length_size =
+                                        Some((avc1.avcc.length_size_minus_one as usize & 0x3) + 1);
                                 }
-                                if let Ok(pps) = track.picture_parameter_set() {
-                                    data.extend_from_slice(pps);
-                                }
-                                data
+                                build_h264_parameter_sets(track)
                             }
                             _ => Vec::new(),
                         };
@@ -158,6 +249,7 @@ impl Mp4Demuxer {
             audio_track_id,
             video_info,
             audio_info,
+            h264_nal_length_size,
             video_sample_idx: 1, // MP4 samples are 1-indexed
             audio_sample_idx: 1,
             video_sample_count,
@@ -188,8 +280,27 @@ impl Mp4Demuxer {
 
         self.video_sample_idx += 1;
 
+        let codec = self.video_info.as_ref().map(|info| info.codec.clone());
+        let data = if codec == Some(VideoCodec::H264) {
+            let parameter_sets = if sample.is_sync {
+                self.video_info
+                    .as_ref()
+                    .map(|info| info.extra_data.as_slice())
+                    .filter(|data| !data.is_empty())
+            } else {
+                None
+            };
+            avcc_sample_to_annex_b(
+                sample.bytes.as_ref(),
+                self.h264_nal_length_size.unwrap_or(4),
+                parameter_sets,
+            )?
+        } else {
+            sample.bytes.to_vec()
+        };
+
         Ok(Some(Packet {
-            data: sample.bytes.to_vec(),
+            data,
             pts: sample.start_time as i64,
             dts: sample.start_time as i64, // MP4 doesn't expose DTS separately in this API
             duration: sample.duration as i64,
@@ -229,6 +340,48 @@ impl Mp4Demuxer {
             is_keyframe: sample.is_sync,
             stream_index: 1,
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{append_annex_b_nal, avcc_sample_to_annex_b};
+
+    #[test]
+    fn avcc_h264_sample_is_converted_to_annex_b() {
+        let sample = [
+            0x00, 0x00, 0x00, 0x02, 0x67, 0x42, 0x00, 0x00, 0x00, 0x03, 0x68, 0xce, 0x06,
+        ];
+
+        let converted = avcc_sample_to_annex_b(&sample, 4, None).unwrap();
+        assert_eq!(
+            converted,
+            vec![0, 0, 0, 1, 0x67, 0x42, 0, 0, 0, 1, 0x68, 0xce, 0x06]
+        );
+    }
+
+    #[test]
+    fn avcc_h264_keyframe_prepends_parameter_sets() {
+        let mut parameter_sets = Vec::new();
+        append_annex_b_nal(&mut parameter_sets, &[0x67, 0x64, 0x00, 0x1f]);
+        append_annex_b_nal(&mut parameter_sets, &[0x68, 0xeb, 0xef, 0x20]);
+
+        let sample = [0x00, 0x00, 0x00, 0x02, 0x65, 0x88];
+        let converted = avcc_sample_to_annex_b(&sample, 4, Some(&parameter_sets)).unwrap();
+
+        assert_eq!(
+            converted,
+            vec![
+                0, 0, 0, 1, 0x67, 0x64, 0x00, 0x1f, 0, 0, 0, 1, 0x68, 0xeb, 0xef, 0x20,
+                0, 0, 0, 1, 0x65, 0x88
+            ]
+        );
+    }
+
+    #[test]
+    fn avcc_h264_conversion_rejects_truncated_sample() {
+        let sample = [0x00, 0x00, 0x00, 0x05, 0x65, 0x88];
+        assert!(avcc_sample_to_annex_b(&sample, 4, None).is_err());
     }
 }
 

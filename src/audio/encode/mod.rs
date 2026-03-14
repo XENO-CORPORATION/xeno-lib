@@ -3,7 +3,7 @@
 //! Supports:
 //! - WAV (via hound) - Lossless, widely compatible
 //! - FLAC (via flacenc) - Lossless compression (~60% size reduction)
-//! - Opus (via audiopus) - High-quality lossy compression
+//! - Ogg Opus (via audiopus) - High-quality lossy compression
 //!
 //! # Example: Encode audio to WAV
 //!
@@ -46,7 +46,10 @@ use thiserror::Error;
 pub mod opus;
 
 #[cfg(feature = "audio-encode-opus")]
-pub use opus::{encode_opus, OpusApplication, OpusEncoder, OpusEncoderConfig, OpusError, OpusResult};
+pub use opus::{
+    encode_opus, encode_opus_ogg, encode_opus_ogg_to_bytes, OpusApplication, OpusEncoder,
+    OpusEncoderConfig, OpusError, OpusResult,
+};
 
 /// Audio encoding error types.
 #[derive(Debug, Error)]
@@ -492,7 +495,7 @@ pub enum AudioOutputFormat {
     Wav,
     /// FLAC - Lossless, compressed (requires audio-encode-flac feature)
     Flac,
-    /// Opus - High-quality lossy (requires audio-encode-opus feature)
+    /// Opus - High-quality lossy Ogg Opus output (requires audio-encode-opus feature)
     Opus,
 }
 

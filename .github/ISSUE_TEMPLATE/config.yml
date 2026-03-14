@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security reports
+    url: https://github.com/XENO-CORPORATION/xeno-lib/blob/master/SECURITY.md
+    about: Read the private reporting instructions for security issues.
+  - name: Usage and project docs
+    url: https://github.com/XENO-CORPORATION/xeno-lib/blob/master/README.md
+    about: Review installation, feature flags, CLI usage, and project scope before filing an issue.

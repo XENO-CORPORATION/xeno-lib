@@ -153,6 +153,9 @@ pub use crate::video::decode::{
     DecoderCapabilities, DecoderConfig, OutputFormat,
 };
 
+#[cfg(all(feature = "video-decode", feature = "video-decode-sw"))]
+pub use crate::video::decode::OpenH264Decoder;
+
 #[cfg(feature = "audio")]
 pub use crate::audio::{
     decode_file as decode_audio_file, extract_audio_from_video, AudioCodec as AudioCodecType,

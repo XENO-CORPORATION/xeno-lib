@@ -1,0 +1,14 @@
+# Default ownership
+* @emilian-bnkrsys
+
+# Core media subsystems
+/src/video/ @emilian-bnkrsys
+/src/audio/ @emilian-bnkrsys
+/src/background/ @emilian-bnkrsys
+/src/upscale/ @emilian-bnkrsys
+
+# CLI and automation
+/xeno-edit/ @emilian-bnkrsys
+/tools/ @emilian-bnkrsys
+/benchmarks/ @emilian-bnkrsys
+/.github/ @emilian-bnkrsys

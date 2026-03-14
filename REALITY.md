@@ -1,5 +1,7 @@
 # xeno-lib Reality Check
 
+> Status note (March 5, 2026): use `benchmarks/ffmpeg/OVERCOME_TRACKER.md` for the active roadmap and `benchmarks/ffmpeg/results/latest.md` for the CI-generated parity snapshot. This file is still useful context, but it is not the operational source of truth.
+
 > **This document is an honest assessment of where xeno-lib stands compared to FFmpeg and other industry tools. No marketing, just facts.**
 
 ---

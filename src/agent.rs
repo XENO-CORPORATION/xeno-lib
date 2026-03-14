@@ -427,6 +427,8 @@ pub struct Capabilities {
     pub mux_formats: Vec<String>,
     /// Available audio codecs
     pub audio_codecs: Vec<String>,
+    /// Available audio output formats for encoding
+    pub audio_encode_formats: Vec<String>,
     /// Available image transforms
     pub transforms: Vec<String>,
     /// GPU decoder available (NVDEC)
@@ -435,6 +437,8 @@ pub struct Capabilities {
     pub gpu_encode: bool,
     /// Software AV1 decoder available (dav1d)
     pub sw_av1_decode: bool,
+    /// Software H.264 decoder available (OpenH264)
+    pub sw_h264_decode: bool,
     /// Background removal available
     pub background_removal: bool,
 }
@@ -451,6 +455,7 @@ impl Capabilities {
             demux_formats: Vec::new(),
             mux_formats: Vec::new(),
             audio_codecs: Vec::new(),
+            audio_encode_formats: Vec::new(),
             transforms: vec![
                 "resize".to_string(),
                 "rotate".to_string(),
@@ -465,6 +470,7 @@ impl Capabilities {
             gpu_decode: false,
             gpu_encode: false,
             sw_av1_decode: false,
+            sw_h264_decode: false,
             background_removal: false,
         };
 
@@ -503,9 +509,10 @@ impl Capabilities {
         }
 
         // Software AV1 decoder
-        #[cfg(all(feature = "video-decode-sw", not(target_os = "windows")))]
+        #[cfg(feature = "video-decode-sw")]
         {
             caps.sw_av1_decode = true;
+            caps.sw_h264_decode = true;
         }
 
         // Container demuxing
@@ -516,6 +523,7 @@ impl Capabilities {
                 "mkv".to_string(),
                 "webm".to_string(),
                 "ivf".to_string(),
+                "avi".to_string(),
             ]);
         }
 
@@ -527,9 +535,28 @@ impl Capabilities {
                 "aac".to_string(),
                 "flac".to_string(),
                 "vorbis".to_string(),
-                "opus".to_string(),
                 "wav".to_string(),
             ]);
+        }
+
+        #[cfg(feature = "audio-encode-opus")]
+        {
+            caps.audio_codecs.push("opus".to_string());
+        }
+
+        #[cfg(feature = "audio-encode")]
+        {
+            caps.audio_encode_formats.push("wav".to_string());
+        }
+
+        #[cfg(feature = "audio-encode-flac")]
+        {
+            caps.audio_encode_formats.push("flac".to_string());
+        }
+
+        #[cfg(feature = "audio-encode-opus")]
+        {
+            caps.audio_encode_formats.push("opus".to_string());
         }
 
         // Background removal
@@ -558,10 +585,12 @@ impl ToAgentJson for Capabilities {
   "demux_formats": {:?},
   "mux_formats": {:?},
   "audio_codecs": {:?},
+  "audio_encode_formats": {:?},
   "transforms": {:?},
   "gpu_decode": {},
   "gpu_encode": {},
   "sw_av1_decode": {},
+  "sw_h264_decode": {},
   "background_removal": {}
 }}"#,
             self.version,
@@ -570,10 +599,12 @@ impl ToAgentJson for Capabilities {
             self.demux_formats,
             self.mux_formats,
             self.audio_codecs,
+            self.audio_encode_formats,
             self.transforms,
             self.gpu_decode,
             self.gpu_encode,
             self.sw_av1_decode,
+            self.sw_h264_decode,
             self.background_removal,
         )
     }
