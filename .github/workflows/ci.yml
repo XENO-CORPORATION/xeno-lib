@@ -66,15 +66,21 @@ jobs:
         run: cargo check --all-features --locked
 
       - name: Check xeno-edit (deny warnings)
+        if: runner.os != 'Windows'
         env:
           RUSTFLAGS: -D warnings
         run: cargo check --manifest-path xeno-edit/Cargo.toml --locked
+
+      - name: Build xeno-edit release (Windows, deny warnings)
+        if: runner.os == 'Windows'
+        env:
+          RUSTFLAGS: -D warnings
+        run: cargo build --manifest-path xeno-edit/Cargo.toml --release --locked
 
       - name: Runtime smoke check (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          cargo build --manifest-path xeno-edit/Cargo.toml --release --locked
           $bin = "xeno-edit\target\release\xeno-edit.exe"
           & $bin capabilities
 
