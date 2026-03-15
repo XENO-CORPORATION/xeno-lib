@@ -1,0 +1,31 @@
+[package]
+name = "xeno-lib-wasm"
+version = "0.1.0"
+edition = "2021"
+description = "WebAssembly bindings for xeno-lib pure-compute image processing functions"
+license = "Apache-2.0"
+repository = "https://github.com/XENO-CORPORATION/xeno-lib"
+homepage = "https://github.com/XENO-CORPORATION/xeno-lib"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# wasm-bindgen for JS interop
+wasm-bindgen = "0.2"
+
+# xeno-lib with NO default features — only pure-compute modules
+# transforms, adjustments, filters, and analysis are always compiled (no feature gate)
+xeno-lib = { path = "..", default-features = false }
+
+# image crate for DynamicImage conversion
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+
+[patch.crates-io]
+flacenc = { path = "../vendor/flacenc" }
+pastey = { path = "../vendor/pastey" }
+rav1e = { path = "../vendor/rav1e" }
+
+[profile.release]
+opt-level = "s"       # Optimize for size in WASM
+lto = true
