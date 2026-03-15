@@ -246,6 +246,15 @@ def upsert_comment(owner, repo, pr_number, token, body):
         )
 
 
+def try_upsert_comment(owner, repo, pr_number, token, body):
+    try:
+        upsert_comment(owner, repo, pr_number, token, body)
+    except RuntimeError as error:
+        print(f"Warning: unable to update CLA comment: {error}", file=sys.stderr)
+        return False
+    return True
+
+
 def rerun_latest_pr_check(owner, repo, pr_number, token):
     runs = github_api(
         "GET",
@@ -349,7 +358,7 @@ def main():
     )
 
     signed, unsigned, unknown = evaluate(committers, ledger)
-    upsert_comment(
+    try_upsert_comment(
         owner,
         repo,
         pr_number,
