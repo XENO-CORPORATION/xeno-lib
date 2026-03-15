@@ -21,6 +21,8 @@ xeno-lib = { path = "..", features = [
   "transcribe",
   "audio-separate",
   "hardware-detect",
+  "video-decode-hevc",
+  "video-encode-nvenc",
 ] }
 
 # napi-rs v3 — the standard Rust → Node.js N-API bridge

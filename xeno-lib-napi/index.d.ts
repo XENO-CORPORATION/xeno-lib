@@ -361,6 +361,35 @@ export interface CodecSupportJs {
   vp9: CodecCapabilityJs;
 }
 
+// ---------------------------------------------------------------------------
+// Video Decode/Encode (Phase 2 — HEVC + NVENC)
+// ---------------------------------------------------------------------------
+
+/**
+ * Decode a single HEVC/H.265 frame from raw NAL unit data to RGBA pixels.
+ *
+ * Takes Annex B format HEVC data and returns an RGBA buffer.
+ * Currently returns an error until libde265 is linked. The NAL unit parsing
+ * and YUV→RGBA conversion pipeline are fully implemented and ready.
+ *
+ * @param data - Raw HEVC NAL unit data (Annex B format)
+ * @returns RGBA u8 buffer of the decoded frame
+ * @throws If data is empty, or decoder is not yet available
+ */
+export function decodeHevcFrame(data: Buffer): Promise<Buffer>;
+
+/**
+ * Check if NVENC hardware encoding is available on the current system.
+ * Returns true if the NVIDIA NVENC library can be loaded.
+ * This is a lightweight check that does not create an encoder session.
+ * @returns true if NVENC is available
+ */
+export function isNvencAvailable(): boolean;
+
+// ---------------------------------------------------------------------------
+// Hardware Detection (Phase 2 — hardware encoder/decoder capability)
+// ---------------------------------------------------------------------------
+
 /**
  * Detect available hardware acceleration on the current system.
  * Dynamically loads vendor-specific libraries to detect GPUs.

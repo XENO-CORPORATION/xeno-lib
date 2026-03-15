@@ -83,9 +83,10 @@ video-encode-h264 = ["video", "dep:openh264", "mp4"]  # H.264 encoding via OpenH
 video-encode-full = ["video-encode", "video-encode-h264"]  # All encoders
 video-decode = ["video", "libloading"]
 video-decode-sw = ["video", "dep:dav1d", "dep:openh264"]  # Software AV1 + H.264 decoders
-video-decode-hevc = ["video"]                              # HEVC/H.265 software decoder (stub — awaiting libde265 integration)
+video-decode-hevc = ["video"]                              # HEVC/H.265 software decoder (YUV→RGBA conversion ready, awaiting libde265 linking)
+video-encode-nvenc = ["video", "libloading"]               # NVIDIA NVENC hardware encoder (H.264/H.265/AV1, dynamic loading)
 hardware-detect = ["libloading"]                           # Hardware GPU/encoder detection (NVENC, QSV, AMF)
-video-full = ["video-encode-full", "video-decode", "video-decode-sw", "video-decode-hevc"]
+video-full = ["video-encode-full", "video-decode", "video-decode-sw", "video-decode-hevc", "video-encode-nvenc"]
 
 # Audio features (Phase 2)
 audio = ["symphonia"]

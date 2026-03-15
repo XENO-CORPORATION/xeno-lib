@@ -34,6 +34,9 @@ mod av1;
 #[cfg(feature = "video-encode-h264")]
 mod h264;
 
+#[cfg(feature = "video-encode-nvenc")]
+pub mod nvenc;
+
 #[cfg(feature = "video-encode")]
 pub use av1::{
     encode_to_ivf, encode_to_mp4, Av1Encoder, Av1EncoderConfig, EncodingSpeed,

@@ -20,3 +20,4 @@ mod ai_models;
 mod hardware;
 mod helpers;
 mod validation;
+mod video;
