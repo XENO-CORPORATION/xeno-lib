@@ -1,9 +1,15 @@
 name: Release
 
+run-name: Release / ${{ github.ref_name }}
+
 on:
   push:
     tags:
       - "v*"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
