@@ -133,6 +133,47 @@ pub fn encode_wav(
     Ok(bytes.into())
 }
 
+/// Encode f32 PCM samples to AAC format (lossy compression for video export).
+///
+/// # Status
+///
+/// **Currently a stub** — no pure Rust AAC encoder exists. Will return an error
+/// until fdk-aac C bindings are integrated. Use Opus encoding as an alternative.
+///
+/// # Arguments
+/// * `samples` - Interleaved PCM samples as f64 array (will be converted to f32 internally)
+/// * `sample_rate` - Sample rate in Hz (1-96000)
+/// * `channels` - Number of channels (1-8)
+/// * `bitrate` - Target bitrate in bps (e.g., 128000, 192000, 256000)
+///
+/// # Returns
+/// A `Buffer` containing the AAC encoded bytes.
+///
+/// # Errors
+/// - If samples array is empty
+/// - If parameters are out of range
+/// - If AAC encoder is not available (current stub)
+#[napi]
+pub fn encode_aac(
+    samples: Float64Array,
+    sample_rate: u32,
+    channels: u32,
+    bitrate: u32,
+) -> Result<Buffer> {
+    validate_audio_samples(&samples, sample_rate, channels)?;
+
+    let f32_samples: Vec<f32> = samples.iter().map(|&s| s as f32).collect();
+
+    let config = xeno_lib::audio::encode::aac::AacEncoderConfig::new(sample_rate, channels)
+        .with_bitrate(bitrate);
+
+    let bytes = xeno_lib::audio::encode::aac::encode_aac(&f32_samples, &config).map_err(|e| {
+        Error::new(Status::GenericFailure, format!("AAC encode failed: {e}"))
+    })?;
+
+    Ok(bytes.into())
+}
+
 /// Encode f32 PCM samples to FLAC format (lossless compression).
 ///
 /// # Arguments

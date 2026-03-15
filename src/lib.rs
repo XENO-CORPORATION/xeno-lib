@@ -87,7 +87,7 @@ pub mod transcribe;
 #[cfg(feature = "audio-separate")]
 pub mod audio_separate;
 
-#[cfg(any(feature = "video", feature = "video-encode", feature = "video-decode-hevc"))]
+#[cfg(any(feature = "video", feature = "video-encode", feature = "video-decode-hevc", feature = "video-decode-vp9"))]
 pub mod video;
 
 #[cfg(feature = "hardware-detect")]
@@ -255,6 +255,10 @@ pub mod document;
 #[cfg(feature = "vectorize")]
 pub mod vectorize;
 
+/// Modern image format support (AVIF, HEIF, enhanced WebP).
+#[cfg(any(feature = "format-avif", feature = "format-heif"))]
+pub mod formats;
+
 // New Feature Exports
 
 #[cfg(feature = "subtitle")]
@@ -309,6 +313,27 @@ pub use crate::document::{
 pub use crate::vectorize::{
     vectorize_file_to_svg, vectorize_image_to_svg_file, vectorize_image_to_svg_string,
     VectorizeColorMode, VectorizeConfig, VectorizeError, VectorizeHierarchy, VectorizePreset,
+};
+
+#[cfg(all(feature = "audio-encode-aac", feature = "audio"))]
+pub use crate::audio::encode::{
+    encode_aac, encode_aac_to_bytes, encode_aac_to_file, is_aac_available,
+    AacEncodeError, AacEncodeResult, AacEncoderConfig, AacProfile,
+};
+
+#[cfg(feature = "video-decode-vp9")]
+pub use crate::video::decode::vp9::Vp9Decoder;
+
+#[cfg(feature = "format-avif")]
+pub use crate::formats::avif::{
+    encode_avif, decode_avif, decode_avif_from_file, encode_avif_buffer,
+    AvifEncodeConfig, AvifError, AvifResult,
+};
+
+#[cfg(feature = "format-heif")]
+pub use crate::formats::heif::{
+    encode_heif, decode_heif, decode_heif_from_file, encode_heif_buffer,
+    is_heif_available, HeifEncodeConfig, HeifError, HeifResult,
 };
 
 #[cfg(feature = "audio")]

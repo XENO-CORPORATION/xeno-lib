@@ -116,6 +116,12 @@ pub use encode::{
     OpusEncoderConfig, OpusError, OpusResult,
 };
 
+#[cfg(feature = "audio-encode-aac")]
+pub use encode::{
+    encode_aac, encode_aac_to_bytes, encode_aac_to_file, is_aac_available,
+    AacEncodeError, AacEncodeResult, AacEncoderConfig, AacProfile,
+};
+
 // Audio effects module (Phase 3 - Reverb, EQ, Pitch, etc.)
 #[cfg(feature = "audio")]
 pub mod effects;

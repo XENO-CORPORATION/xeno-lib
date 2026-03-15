@@ -46,6 +46,9 @@ mod openh264_decoder;
 #[cfg(feature = "video-decode-hevc")]
 pub mod hevc;
 
+#[cfg(feature = "video-decode-vp9")]
+pub mod vp9;
+
 #[cfg(feature = "video-decode")]
 pub use nvdec::*;
 
@@ -56,6 +59,9 @@ pub use openh264_decoder::OpenH264Decoder;
 
 #[cfg(feature = "video-decode-hevc")]
 pub use hevc::HevcDecoder;
+
+#[cfg(feature = "video-decode-vp9")]
+pub use vp9::Vp9Decoder;
 
 use crate::video::VideoError;
 
@@ -325,8 +331,10 @@ pub enum DecoderBackend {
     Dav1d,
     /// OpenH264 software decoder (H.264 only)
     OpenH264,
-    /// HEVC/H.265 software decoder (stub — not yet available)
+    /// HEVC/H.265 software decoder (stub -- not yet available)
     Hevc,
+    /// VP9 software decoder (stub -- pending libvpx integration)
+    Vp9,
     /// No decoder available
     None,
 }
@@ -354,10 +362,16 @@ pub fn best_decoder_for(codec: DecodeCodec) -> DecoderBackend {
         return DecoderBackend::OpenH264;
     }
 
-    // HEVC software decoder (stub — not yet available)
+    // HEVC software decoder (stub -- not yet available)
     #[cfg(feature = "video-decode-hevc")]
     if codec == DecodeCodec::H265 && HevcDecoder::is_available() {
         return DecoderBackend::Hevc;
+    }
+
+    // VP9 software decoder (stub -- pending libvpx integration)
+    #[cfg(feature = "video-decode-vp9")]
+    if codec == DecodeCodec::Vp9 && Vp9Decoder::is_available() {
+        return DecoderBackend::Vp9;
     }
 
     DecoderBackend::None
@@ -375,10 +389,16 @@ pub fn best_decoder_for(codec: DecodeCodec) -> DecoderBackend {
         return DecoderBackend::OpenH264;
     }
 
-    // HEVC software decoder (stub — not yet available)
+    // HEVC software decoder (stub -- not yet available)
     #[cfg(feature = "video-decode-hevc")]
     if codec == DecodeCodec::H265 && HevcDecoder::is_available() {
         return DecoderBackend::Hevc;
+    }
+
+    // VP9 software decoder (stub -- pending libvpx integration)
+    #[cfg(feature = "video-decode-vp9")]
+    if codec == DecodeCodec::Vp9 && Vp9Decoder::is_available() {
+        return DecoderBackend::Vp9;
     }
 
     DecoderBackend::None

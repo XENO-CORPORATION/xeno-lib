@@ -84,9 +84,10 @@ video-encode-full = ["video-encode", "video-encode-h264"]  # All encoders
 video-decode = ["video", "libloading"]
 video-decode-sw = ["video", "dep:dav1d", "dep:openh264"]  # Software AV1 + H.264 decoders
 video-decode-hevc = ["video"]                              # HEVC/H.265 software decoder (YUV→RGBA conversion ready, awaiting libde265 linking)
+video-decode-vp9 = ["video"]                               # VP9 software decoder (stub — pending libvpx integration; NVDEC VP9 already works)
 video-encode-nvenc = ["video", "libloading"]               # NVIDIA NVENC hardware encoder (H.264/H.265/AV1, dynamic loading)
 hardware-detect = ["libloading"]                           # Hardware GPU/encoder detection (NVENC, QSV, AMF)
-video-full = ["video-encode-full", "video-decode", "video-decode-sw", "video-decode-hevc", "video-encode-nvenc"]
+video-full = ["video-encode-full", "video-decode", "video-decode-sw", "video-decode-hevc", "video-decode-vp9", "video-encode-nvenc"]
 
 # Audio features (Phase 2)
 audio = ["symphonia"]
@@ -94,7 +95,8 @@ audio-resample = ["audio", "rubato"]
 audio-encode = ["hound"]                          # WAV encoding
 audio-encode-flac = ["audio-encode", "flacenc"]   # FLAC encoding (pure Rust)
 audio-encode-opus = ["audio-encode", "audiopus"]  # Opus encoding (requires libopus)
-audio-full = ["audio", "audio-resample", "audio-encode-flac", "audio-encode-opus"]
+audio-encode-aac = ["audio-encode"]               # AAC encoding (stub — pending fdk-aac C bindings)
+audio-full = ["audio", "audio-resample", "audio-encode-flac", "audio-encode-opus", "audio-encode-aac"]
 
 # A/V muxing features
 av-mux = ["mp4", "bytes"]                         # Audio+Video muxing to MP4
@@ -174,8 +176,12 @@ document = []                                      # Document processing
 # Raster-to-vector SVG conversion
 vectorize = ["dep:vtracer"]                        # PNG/JPG/etc -> SVG vectorization
 
+# Modern image format support
+format-avif = []                                   # AVIF encode/decode (via image crate's built-in AVIF support)
+format-heif = []                                   # HEIF/HEIC support (stub — pending libheif-rs integration)
+
 # Full multimedia (everything)
-multimedia = ["video-full", "audio-full", "containers", "text-overlay", "subtitle", "hardware-detect"]
+multimedia = ["video-full", "audio-full", "containers", "text-overlay", "subtitle", "hardware-detect", "format-avif", "format-heif"]
 
 # AI features bundle (original)
 ai = ["background-removal", "upscale", "face-restore", "colorize", "inpaint", "face-detect", "depth"]

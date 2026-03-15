@@ -51,6 +51,16 @@ pub use opus::{
     OpusEncoderConfig, OpusError, OpusResult,
 };
 
+// AAC encoding submodule (stub — pending fdk-aac integration)
+#[cfg(feature = "audio-encode-aac")]
+pub mod aac;
+
+#[cfg(feature = "audio-encode-aac")]
+pub use aac::{
+    encode_aac, encode_aac_to_bytes, encode_aac_to_file, is_aac_available,
+    AacEncodeError, AacEncodeResult, AacEncoderConfig, AacProfile,
+};
+
 /// Audio encoding error types.
 #[derive(Debug, Error)]
 pub enum AudioEncodeError {
@@ -497,6 +507,8 @@ pub enum AudioOutputFormat {
     Flac,
     /// Opus - High-quality lossy Ogg Opus output (requires audio-encode-opus feature)
     Opus,
+    /// AAC - Lossy compression for video export (requires audio-encode-aac feature)
+    Aac,
 }
 
 impl AudioOutputFormat {
@@ -506,6 +518,7 @@ impl AudioOutputFormat {
             AudioOutputFormat::Wav => "wav",
             AudioOutputFormat::Flac => "flac",
             AudioOutputFormat::Opus => "opus",
+            AudioOutputFormat::Aac => "aac",
         }
     }
 
@@ -515,6 +528,7 @@ impl AudioOutputFormat {
             "wav" | "wave" => Some(AudioOutputFormat::Wav),
             "flac" => Some(AudioOutputFormat::Flac),
             "opus" | "ogg" => Some(AudioOutputFormat::Opus),
+            "aac" | "m4a" => Some(AudioOutputFormat::Aac),
             _ => None,
         }
     }
@@ -531,6 +545,10 @@ impl AudioOutputFormat {
             AudioOutputFormat::Opus => true,
             #[cfg(not(feature = "audio-encode-opus"))]
             AudioOutputFormat::Opus => false,
+            #[cfg(feature = "audio-encode-aac")]
+            AudioOutputFormat::Aac => aac::is_aac_available(),
+            #[cfg(not(feature = "audio-encode-aac"))]
+            AudioOutputFormat::Aac => false,
         }
     }
 }

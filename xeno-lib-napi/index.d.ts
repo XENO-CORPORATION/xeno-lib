@@ -132,6 +132,25 @@ export function encodeJpeg(buffer: Buffer, width: number, height: number, qualit
  */
 export function encodeWebp(buffer: Buffer, width: number, height: number, quality: number): Buffer;
 
+/**
+ * Encode an RGBA buffer to AVIF format.
+ * @param buffer  - RGBA u8 pixel data (4 bytes per pixel, row-major)
+ * @param width   - Image width in pixels (must be > 0)
+ * @param height  - Image height in pixels (must be > 0)
+ * @param quality - AVIF quality 1-100 (clamped if out of range)
+ * @returns Buffer containing compressed AVIF file bytes
+ * @throws If buffer size !== width * height * 4, or dimensions are zero
+ */
+export function encodeAvif(buffer: Buffer, width: number, height: number, quality: number): Buffer;
+
+/**
+ * Decode AVIF data to an RGBA buffer.
+ * @param data - Raw AVIF file bytes
+ * @returns RGBA u8 buffer of the decoded image
+ * @throws If data is empty or invalid AVIF
+ */
+export function decodeAvif(data: Buffer): Buffer;
+
 // ---------------------------------------------------------------------------
 // Audio Processing (Priority 2 — xeno-sound)
 // ---------------------------------------------------------------------------
@@ -167,6 +186,19 @@ export function decodeAudio(filePath: string): Promise<AudioData>;
  * @throws If samples empty, sample rate/channels out of range, invalid bit depth, or NaN/Infinity samples
  */
 export function encodeWav(samples: Float64Array, sampleRate: number, channels: number, bitDepth: number): Buffer;
+
+/**
+ * Encode PCM samples to AAC format (lossy compression for video export).
+ * Currently a stub - returns an error until fdk-aac C bindings are integrated.
+ * Use Opus encoding as an alternative.
+ * @param samples    - f64 array of interleaved PCM samples (must not be empty, no NaN/Infinity)
+ * @param sampleRate - Sample rate in Hz (1-96000)
+ * @param channels   - Number of channels (1-8)
+ * @param bitrate    - Target bitrate in bps (e.g., 128000, 192000, 256000)
+ * @returns Buffer containing AAC encoded bytes
+ * @throws If samples empty, parameters out of range, or encoder not available
+ */
+export function encodeAac(samples: Float64Array, sampleRate: number, channels: number, bitrate: number): Buffer;
 
 /**
  * Encode PCM samples to FLAC format (lossless compression).
