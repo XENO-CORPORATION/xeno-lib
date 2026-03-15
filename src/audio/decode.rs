@@ -102,8 +102,10 @@ impl DecodedAudio {
 
         // RIFF header
         bytes.extend_from_slice(b"RIFF");
-        let data_size = self.samples.len() * 2; // 16-bit samples
-        let file_size = (36 + data_size) as u32;
+        let data_size = self.samples.len().saturating_mul(2); // 16-bit samples
+        // Cap at u32::MAX to avoid overflow (WAV format uses u32 sizes)
+        let data_size_u32 = (data_size as u64).min(u32::MAX as u64) as u32;
+        let file_size = data_size_u32.saturating_add(36);
         bytes.extend_from_slice(&file_size.to_le_bytes());
         bytes.extend_from_slice(b"WAVE");
 
@@ -121,7 +123,7 @@ impl DecodedAudio {
 
         // data chunk
         bytes.extend_from_slice(b"data");
-        bytes.extend_from_slice(&(data_size as u32).to_le_bytes());
+        bytes.extend_from_slice(&data_size_u32.to_le_bytes());
 
         // Convert f32 samples to i16
         for sample in &self.samples {

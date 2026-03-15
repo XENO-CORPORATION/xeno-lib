@@ -323,7 +323,9 @@ impl BiquadCoeffs {
         let w0 = 2.0 * PI * band.frequency / sample_rate;
         let cos_w0 = w0.cos();
         let sin_w0 = w0.sin();
-        let alpha = sin_w0 / (2.0 * band.q);
+        // Clamp Q to a small positive value to avoid division by zero
+        let q = if band.q.is_finite() && band.q > 0.0 { band.q } else { 0.001 };
+        let alpha = sin_w0 / (2.0 * q);
 
         let (b0, b1, b2, a0, a1, a2) = match band.filter_type {
             EqFilterType::Peak => {
@@ -704,6 +706,7 @@ impl Default for ChorusConfig {
 
 /// Apply chorus effect to audio.
 pub fn chorus(samples: &[f32], sample_rate: u32, config: ChorusConfig) -> Vec<f32> {
+    let voices = config.voices.max(1); // At least 1 voice to avoid division by zero
     let max_delay = (config.delay_ms * 2.0 * sample_rate as f32 / 1000.0) as usize;
     let mut buffer = vec![0.0f32; max_delay.max(1)];
     let mut buffer_idx = 0;
@@ -719,8 +722,8 @@ pub fn chorus(samples: &[f32], sample_rate: u32, config: ChorusConfig) -> Vec<f3
 
         let mut chorus_sum = 0.0f32;
 
-        for voice in 0..config.voices {
-            let voice_phase = lfo_phase + (voice as f32 * PI / config.voices as f32);
+        for voice in 0..voices {
+            let voice_phase = lfo_phase + (voice as f32 * PI / voices as f32);
             let modulation = voice_phase.sin() * config.depth * base_delay;
             let delay_samples = (base_delay + modulation).max(1.0);
 
@@ -739,7 +742,7 @@ pub fn chorus(samples: &[f32], sample_rate: u32, config: ChorusConfig) -> Vec<f3
             chorus_sum += buffer[idx] * (1.0 - frac) + buffer[next_idx] * frac;
         }
 
-        chorus_sum /= config.voices as f32;
+        chorus_sum /= voices as f32;
 
         output[i] = sample * (1.0 - config.wet_mix) + chorus_sum * config.wet_mix;
 
@@ -851,8 +854,11 @@ impl Default for GateConfig {
 pub fn gate(samples: &[f32], sample_rate: u32, config: GateConfig) -> Vec<f32> {
     let threshold = db_to_linear(config.threshold_db);
     let range = db_to_linear(config.range_db);
-    let attack_coef = (-1.0 / (config.attack_ms * sample_rate as f32 / 1000.0)).exp();
-    let release_coef = (-1.0 / (config.release_ms * sample_rate as f32 / 1000.0)).exp();
+    // Clamp to minimum of 0.01ms to avoid division by zero / exp(-inf)
+    let attack_samples = (config.attack_ms.max(0.01) * sample_rate as f32 / 1000.0).max(0.01);
+    let release_samples = (config.release_ms.max(0.01) * sample_rate as f32 / 1000.0).max(0.01);
+    let attack_coef = (-1.0 / attack_samples).exp();
+    let release_coef = (-1.0 / release_samples).exp();
 
     let mut envelope = 0.0f32;
     let mut gain = range;
@@ -969,5 +975,114 @@ mod tests {
         assert!((db_to_linear(0.0) - 1.0).abs() < 0.001);
         assert!((db_to_linear(-6.0) - 0.5).abs() < 0.01);
         assert!((linear_to_db(1.0) - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_eq_zero_q_does_not_panic() {
+        let samples = generate_sine(440.0, 44100, 0.1);
+        let config = EqConfig::new()
+            .add_band(EqBand::peak(1000.0, 6.0, 0.0));
+        let output = equalizer(&samples, 44100, &config);
+        assert_eq!(output.len(), samples.len());
+        // Output should be finite (no NaN/Inf from division by zero)
+        assert!(output.iter().all(|s| s.is_finite()));
+    }
+
+    #[test]
+    fn test_eq_negative_q_does_not_panic() {
+        let samples = generate_sine(440.0, 44100, 0.1);
+        let config = EqConfig::new()
+            .add_band(EqBand::peak(1000.0, 6.0, -1.0));
+        let output = equalizer(&samples, 44100, &config);
+        assert_eq!(output.len(), samples.len());
+        assert!(output.iter().all(|s| s.is_finite()));
+    }
+
+    #[test]
+    fn test_eq_infinity_q_does_not_panic() {
+        let samples = generate_sine(440.0, 44100, 0.1);
+        let config = EqConfig::new()
+            .add_band(EqBand::peak(1000.0, 6.0, f32::INFINITY));
+        let output = equalizer(&samples, 44100, &config);
+        assert_eq!(output.len(), samples.len());
+    }
+
+    #[test]
+    fn test_gate_zero_attack_release() {
+        let samples = generate_sine(440.0, 44100, 0.1);
+        let config = GateConfig {
+            threshold_db: -40.0,
+            attack_ms: 0.0,
+            release_ms: 0.0,
+            range_db: -80.0,
+        };
+        let output = gate(&samples, 44100, config);
+        assert_eq!(output.len(), samples.len());
+        assert!(output.iter().all(|s| s.is_finite()));
+    }
+
+    #[test]
+    fn test_gate_extreme_thresholds() {
+        let samples = generate_sine(440.0, 44100, 0.1);
+        // Threshold at 0 dB — gate should be fully open for loud signal
+        let output = gate(&samples, 44100, GateConfig {
+            threshold_db: 0.0,
+            attack_ms: 1.0,
+            release_ms: 100.0,
+            range_db: -80.0,
+        });
+        assert_eq!(output.len(), samples.len());
+        assert!(output.iter().all(|s| s.is_finite()));
+
+        // Threshold at -infinity dB — gate should be fully open
+        let output = gate(&samples, 44100, GateConfig {
+            threshold_db: -200.0,
+            attack_ms: 1.0,
+            release_ms: 100.0,
+            range_db: -200.0,
+        });
+        assert_eq!(output.len(), samples.len());
+        assert!(output.iter().all(|s| s.is_finite()));
+    }
+
+    #[test]
+    fn test_delay_zero_ms() {
+        let samples = generate_sine(440.0, 44100, 0.1);
+        let config = DelayConfig::single(0.0, 0.5);
+        let output = delay(&samples, 44100, config);
+        assert_eq!(output.len(), samples.len());
+        assert!(output.iter().all(|s| s.is_finite()));
+    }
+
+    #[test]
+    fn test_pitch_shift_zero_semitones() {
+        let samples = generate_sine(440.0, 44100, 0.1);
+        let output = pitch_shift(&samples, 44100, PitchShiftConfig::new(0.0));
+        // 0 semitones should preserve length approximately
+        assert!((output.len() as f32 - samples.len() as f32).abs() < 2.0);
+    }
+
+    #[test]
+    fn test_reverb_empty_input() {
+        let output = reverb(&[], 44100, ReverbConfig::room());
+        assert!(output.is_empty());
+    }
+
+    #[test]
+    fn test_equalizer_empty_input() {
+        let config = EqConfig::voice_clarity();
+        let output = equalizer(&[], 44100, &config);
+        assert!(output.is_empty());
+    }
+
+    #[test]
+    fn test_chorus_zero_voices() {
+        let samples = generate_sine(440.0, 44100, 0.1);
+        let config = ChorusConfig {
+            voices: 0,
+            ..ChorusConfig::default()
+        };
+        let output = chorus(&samples, 44100, config);
+        assert_eq!(output.len(), samples.len());
     }
 }

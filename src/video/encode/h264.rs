@@ -176,6 +176,26 @@ pub struct H264Encoder {
 impl H264Encoder {
     /// Create a new H.264 encoder with the given configuration.
     pub fn create(config: H264EncoderConfig) -> Result<Self, VideoError> {
+        // H.264 with YUV420 requires even dimensions for chroma subsampling
+        if config.width == 0 || config.height == 0 {
+            return Err(VideoError::Config {
+                message: format!("dimensions must be non-zero, got {}x{}", config.width, config.height),
+            });
+        }
+        if config.width % 2 != 0 || config.height % 2 != 0 {
+            return Err(VideoError::Config {
+                message: format!(
+                    "H.264 YUV420 requires even dimensions, got {}x{} — pad or crop to even values",
+                    config.width, config.height
+                ),
+            });
+        }
+        if config.frame_rate <= 0.0 || !config.frame_rate.is_finite() {
+            return Err(VideoError::Config {
+                message: format!("frame_rate must be positive and finite, got {}", config.frame_rate),
+            });
+        }
+
         let bitrate = config.calculate_bitrate() * 1000; // Convert to bps
 
         // OpenH264 0.9 API: dimensions are taken from YUVSource during encode

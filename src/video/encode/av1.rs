@@ -200,6 +200,26 @@ impl VideoEncoder for Av1Encoder {
     type Packet = Packet<u8>;
 
     fn new(config: Av1EncoderConfig) -> Result<Self, VideoError> {
+        // YUV420 chroma subsampling requires even dimensions
+        if config.width == 0 || config.height == 0 {
+            return Err(VideoError::Config {
+                message: format!("dimensions must be non-zero, got {}x{}", config.width, config.height),
+            });
+        }
+        if config.width % 2 != 0 || config.height % 2 != 0 {
+            return Err(VideoError::Config {
+                message: format!(
+                    "AV1 YUV420 requires even dimensions, got {}x{} — pad or crop to even values",
+                    config.width, config.height
+                ),
+            });
+        }
+        if config.frame_rate <= 0.0 || !config.frame_rate.is_finite() {
+            return Err(VideoError::Config {
+                message: format!("frame_rate must be positive and finite, got {}", config.frame_rate),
+            });
+        }
+
         let rav1e_config = Self::create_rav1e_config(&config)?;
         let context = rav1e_config.new_context().map_err(|e| VideoError::Encoding {
             message: format!("Failed to create encoder context: {}", e),

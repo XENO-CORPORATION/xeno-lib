@@ -29,7 +29,15 @@ use wasm_bindgen::prelude::*;
 
 /// Reconstruct a DynamicImage from raw RGBA bytes + dimensions.
 fn rgba_to_dynamic(data: &[u8], width: u32, height: u32) -> Result<DynamicImage, JsValue> {
-    let expected = (width as usize) * (height as usize) * 4;
+    if width == 0 || height == 0 {
+        return Err(JsValue::from_str("Width and height must be non-zero"));
+    }
+    let expected = (width as usize)
+        .checked_mul(height as usize)
+        .and_then(|p| p.checked_mul(4))
+        .ok_or_else(|| JsValue::from_str(&format!(
+            "Image dimensions {}x{} overflow address space", width, height
+        )))?;
     if data.len() != expected {
         return Err(JsValue::from_str(&format!(
             "Invalid data length: expected {} ({}x{}x4), got {}",

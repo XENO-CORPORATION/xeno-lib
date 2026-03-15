@@ -160,7 +160,7 @@ impl Subtitles {
 
     /// Sort cues by start time.
     pub fn sort(&mut self) {
-        self.cues.sort_by(|a, b| a.start.partial_cmp(&b.start).unwrap());
+        self.cues.sort_by(|a, b| a.start.partial_cmp(&b.start).unwrap_or(std::cmp::Ordering::Equal));
     }
 
     /// Shift all timings by an offset (can be negative).
@@ -439,5 +439,21 @@ mod tests {
         let srt = subs.to_srt();
         assert!(srt.contains("00:00:01,000 --> 00:00:05,000"));
         assert!(srt.contains("Hello"));
+    }
+
+    #[test]
+    fn test_sort_with_nan_start_does_not_panic() {
+        let mut subs = Subtitles::new();
+        subs.add_cue(SubtitleCue::new(1, 5.0, 10.0, "Second"));
+        subs.add_cue(SubtitleCue::new(2, 1.0, 3.0, "First"));
+        subs.add_cue(SubtitleCue::new(3, f64::NAN, 4.0, "NaN"));
+        // Should not panic even with NaN start times
+        subs.sort();
+        // Non-NaN cues should be sorted correctly
+        let non_nan: Vec<_> = subs.cues.iter()
+            .filter(|c| !c.start.is_nan())
+            .collect();
+        assert!(non_nan.len() >= 2);
+        assert!(non_nan[0].start <= non_nan[1].start);
     }
 }
