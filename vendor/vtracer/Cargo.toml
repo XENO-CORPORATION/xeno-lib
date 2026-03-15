@@ -47,7 +47,7 @@ path = "src/lib.rs"
 version = "2.3"
 
 [dependencies.image]
-version = "0.23.10"
+version = "0.25.8"
 
 [dependencies.pyo3]
 version = "0.19.0"

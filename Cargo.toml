@@ -24,7 +24,7 @@ ndarray = { version = "0.16", optional = true }
 # Video encoding (Phase 2)
 # Note: "asm" feature requires NASM. Disable rav1e defaults to avoid
 # pulling its CLI/git metadata stack into library builds.
-rav1e = { version = "0.7", optional = true, default-features = false, features = ["asm", "threading"] }
+rav1e = { version = "0.8.1", optional = true, default-features = false, features = ["asm", "threading"] }
 mp4 = { version = "0.14", optional = true }
 
 # H.264 encode/decode via OpenH264 (Cisco's open-source H.264 codec)
@@ -67,6 +67,8 @@ vtracer = { version = "0.6.5", path = "vendor/vtracer", optional = true }  # Hig
 
 [patch.crates-io]
 flacenc = { path = "vendor/flacenc" }
+pastey = { path = "vendor/pastey" }
+rav1e = { path = "vendor/rav1e" }
 
 [features]
 default = []

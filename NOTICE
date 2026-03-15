@@ -13,6 +13,8 @@ Important Notices
 - Vendored third-party source under `vendor/` retains its upstream license files and
   attribution. Review the upstream license text shipped with each vendored component
   before redistribution.
+- Vendored components currently include `flacenc`, `vtracer`, `rav1e`, and `pastey` with
+  upstream license texts preserved in their respective `vendor/` directories.
 - Pretrained model weights and external toolchains are not automatically relicensed by
   this repository. Review the applicable upstream terms before redistribution or
   commercial deployment.
