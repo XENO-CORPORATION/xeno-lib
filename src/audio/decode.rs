@@ -243,8 +243,16 @@ fn parse_ogg_opus_stream(bytes: &[u8]) -> AudioResult<Option<OggOpusStream>> {
             });
         }
 
-        let granule_position = u64::from_le_bytes(bytes[offset + 6..offset + 14].try_into().unwrap());
-        let page_serial = u32::from_le_bytes(bytes[offset + 14..offset + 18].try_into().unwrap());
+        let granule_position = u64::from_le_bytes(
+            bytes[offset + 6..offset + 14]
+                .try_into()
+                .expect("Ogg granule position slice is exactly 8 bytes"),
+        );
+        let page_serial = u32::from_le_bytes(
+            bytes[offset + 14..offset + 18]
+                .try_into()
+                .expect("Ogg page serial slice is exactly 4 bytes"),
+        );
         if let Some(expected_serial) = serial {
             if page_serial != expected_serial {
                 return Err(AudioError::DecodeFailed {
@@ -509,11 +517,11 @@ impl AudioDecoder {
             let duration = decoded.capacity() as u64;
 
             // Ensure sample buffer is properly sized
-            if self.sample_buf.is_none() || self.sample_buf.as_ref().unwrap().capacity() < duration as usize {
+            if self.sample_buf.is_none() || self.sample_buf.as_ref().expect("checked is_none above").capacity() < duration as usize {
                 self.sample_buf = Some(SampleBuffer::new(duration, spec));
             }
 
-            let sample_buf = self.sample_buf.as_mut().unwrap();
+            let sample_buf = self.sample_buf.as_mut().expect("sample_buf guaranteed Some by preceding assignment");
             sample_buf.copy_interleaved_ref(decoded);
 
             let samples = sample_buf.samples().to_vec();

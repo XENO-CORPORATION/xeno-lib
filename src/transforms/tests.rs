@@ -1,8 +1,7 @@
 use super::{
-    recenter, recenter_with_alpha_threshold,
-    Interpolation, crop, flip_horizontal, flip_vertical, resize_by_percent, resize_exact,
-    resize_to_fit, resize_to_height, resize_to_width, rotate, rotate_90, rotate_180, rotate_270,
-    thumbnail,
+    flip_both, recenter, recenter_with_alpha_threshold, Interpolation, crop, flip_horizontal,
+    flip_vertical, resize_by_percent, resize_exact, resize_to_fit, resize_to_height,
+    resize_to_width, rotate, rotate_90, rotate_180, rotate_270, thumbnail,
 };
 use crate::error::TransformError;
 use image::{DynamicImage, ImageBuffer, Luma, Rgb, Rgba};
@@ -230,4 +229,242 @@ fn recenter_threshold_ignores_faint_alpha() {
     // Single-pixel subject should move to the same center convention as
     // `center_on_canvas` (floor on even-sized canvases).
     assert_eq!(out.get_pixel(3, 3), &Rgba([0, 255, 0, 255]));
+}
+
+// =========================================================================
+// Deep testing: flip_horizontal pixel correctness
+// =========================================================================
+
+#[test]
+fn flip_horizontal_pixel_mapping_correct() {
+    // 3x2 RGBA image: verify pixel[0,0] -> pixel[width-1, 0]
+    let data = vec![
+        1, 2, 3, 255, 10, 20, 30, 255, 100, 200, 50, 255, // row 0
+        4, 5, 6, 255, 40, 50, 60, 255, 150, 250, 70, 255, // row 1
+    ];
+    let buffer = ImageBuffer::from_raw(3, 2, data).expect("valid buffer");
+    let image = DynamicImage::ImageRgba8(buffer);
+
+    let flipped = flip_horizontal(&image).expect("flip succeeds");
+    let out = flipped.to_rgba8();
+
+    // Row 0: pixels reversed
+    assert_eq!(out.get_pixel(0, 0), &Rgba([100, 200, 50, 255]));
+    assert_eq!(out.get_pixel(1, 0), &Rgba([10, 20, 30, 255]));
+    assert_eq!(out.get_pixel(2, 0), &Rgba([1, 2, 3, 255]));
+
+    // Row 1: pixels reversed
+    assert_eq!(out.get_pixel(0, 1), &Rgba([150, 250, 70, 255]));
+    assert_eq!(out.get_pixel(1, 1), &Rgba([40, 50, 60, 255]));
+    assert_eq!(out.get_pixel(2, 1), &Rgba([4, 5, 6, 255]));
+}
+
+#[test]
+fn flip_horizontal_preserves_alpha() {
+    let data = vec![
+        255, 0, 0, 128, // semi-transparent red
+        0, 255, 0, 64,  // semi-transparent green
+    ];
+    let buffer = ImageBuffer::from_raw(2, 1, data).expect("valid buffer");
+    let image = DynamicImage::ImageRgba8(buffer);
+
+    let flipped = flip_horizontal(&image).expect("flip succeeds");
+    let out = flipped.to_rgba8();
+
+    assert_eq!(out.get_pixel(0, 0), &Rgba([0, 255, 0, 64]));
+    assert_eq!(out.get_pixel(1, 0), &Rgba([255, 0, 0, 128]));
+}
+
+// =========================================================================
+// Deep testing: rotate_90 dimensions and pixel mapping
+// =========================================================================
+
+#[test]
+fn rotate_90_swaps_dimensions() {
+    // 3x2 image -> should become 2x3
+    let data = vec![0u8; 3 * 2 * 4];
+    let buffer = ImageBuffer::from_raw(3, 2, data).expect("valid buffer");
+    let image = DynamicImage::ImageRgba8(buffer);
+
+    let rotated = rotate_90(&image).expect("rotation succeeds");
+    assert_eq!(rotated.width(), 2); // height becomes width
+    assert_eq!(rotated.height(), 3); // width becomes height
+}
+
+#[test]
+fn rotate_90_pixel_mapping_correct() {
+    // 3x2 image with known pixels
+    // Layout:
+    //   (0,0)=A  (1,0)=B  (2,0)=C
+    //   (0,1)=D  (1,1)=E  (2,1)=F
+    // After 90 CW rotation to 2x3:
+    //   (0,0)=D  (1,0)=A
+    //   (0,1)=E  (1,1)=B
+    //   (0,2)=F  (1,2)=C
+    let data = vec![
+        1, 0, 0, 255, 2, 0, 0, 255, 3, 0, 0, 255, // row 0: A B C
+        4, 0, 0, 255, 5, 0, 0, 255, 6, 0, 0, 255, // row 1: D E F
+    ];
+    let buffer = ImageBuffer::from_raw(3, 2, data).expect("valid buffer");
+    let image = DynamicImage::ImageRgba8(buffer);
+
+    let rotated = rotate_90(&image).expect("rotation succeeds");
+    let out = rotated.to_rgba8();
+
+    assert_eq!(out.get_pixel(0, 0)[0], 4); // D
+    assert_eq!(out.get_pixel(1, 0)[0], 1); // A
+    assert_eq!(out.get_pixel(0, 1)[0], 5); // E
+    assert_eq!(out.get_pixel(1, 1)[0], 2); // B
+    assert_eq!(out.get_pixel(0, 2)[0], 6); // F
+    assert_eq!(out.get_pixel(1, 2)[0], 3); // C
+}
+
+#[test]
+fn rotate_90_preserves_alpha() {
+    let data = vec![
+        255, 0, 0, 100,
+        0, 255, 0, 200,
+    ];
+    let buffer = ImageBuffer::from_raw(2, 1, data).expect("valid buffer");
+    let image = DynamicImage::ImageRgba8(buffer);
+
+    let rotated = rotate_90(&image).expect("rotation succeeds");
+    let out = rotated.to_rgba8();
+
+    // All alpha values should be preserved
+    for pixel in out.pixels() {
+        assert!(pixel[3] == 100 || pixel[3] == 200);
+    }
+}
+
+// =========================================================================
+// Deep testing: resize_exact identity
+// =========================================================================
+
+#[test]
+fn resize_exact_same_dimensions_returns_identical() {
+    let data = vec![
+        255, 0, 0, 255,
+        0, 255, 0, 128,
+        0, 0, 255, 64,
+        128, 128, 128, 255,
+    ];
+    let buffer = ImageBuffer::from_raw(2, 2, data.clone()).expect("valid buffer");
+    let image = DynamicImage::ImageRgba8(buffer);
+
+    let resized = resize_exact(&image, 2, 2, Interpolation::Bilinear).expect("resize");
+    let out = resized.to_rgba8().into_raw();
+
+    assert_eq!(out, data, "resize to same dimensions should be identity");
+}
+
+#[test]
+fn resize_exact_rejects_zero_dimensions() {
+    let image = rgba_image();
+    assert!(resize_exact(&image, 0, 1, Interpolation::Nearest).is_err());
+    assert!(resize_exact(&image, 1, 0, Interpolation::Nearest).is_err());
+    assert!(resize_exact(&image, 0, 0, Interpolation::Nearest).is_err());
+}
+
+// =========================================================================
+// Deep testing: crop full-image bounds = identity
+// =========================================================================
+
+#[test]
+fn crop_full_image_returns_identical() {
+    let data = vec![
+        10, 20, 30, 255,
+        40, 50, 60, 128,
+        70, 80, 90, 64,
+        100, 110, 120, 32,
+    ];
+    let buffer = ImageBuffer::from_raw(2, 2, data.clone()).expect("valid buffer");
+    let image = DynamicImage::ImageRgba8(buffer);
+
+    let cropped = crop(&image, 0, 0, 2, 2).expect("crop succeeds");
+    let out = cropped.to_rgba8().into_raw();
+
+    assert_eq!(out, data, "crop with full bounds should be identity");
+}
+
+#[test]
+fn crop_zero_dimensions_errors() {
+    let image = rgba_image();
+    assert!(crop(&image, 0, 0, 0, 1).is_err());
+    assert!(crop(&image, 0, 0, 1, 0).is_err());
+}
+
+// =========================================================================
+// Deep testing: pixels in [0, 255] range
+// =========================================================================
+
+#[test]
+fn all_transforms_produce_pixels_in_valid_range() {
+    let data = vec![
+        255, 255, 255, 255,
+        0, 0, 0, 0,
+        128, 64, 32, 200,
+        200, 100, 50, 150,
+    ];
+    let buffer = ImageBuffer::from_raw(2, 2, data).expect("valid buffer");
+    let image = DynamicImage::ImageRgba8(buffer);
+
+    let check = |img: &DynamicImage, name: &str| {
+        for pixel in img.to_rgba8().pixels() {
+            for c in 0..4 {
+                assert!(
+                    pixel[c] <= 255,
+                    "{} produced pixel value out of range: {}",
+                    name,
+                    pixel[c]
+                );
+            }
+        }
+    };
+
+    check(&flip_horizontal(&image).unwrap(), "flip_horizontal");
+    check(&flip_vertical(&image).unwrap(), "flip_vertical");
+    check(&flip_both(&image).unwrap(), "flip_both");
+    check(&rotate_90(&image).unwrap(), "rotate_90");
+    check(&rotate_180(&image).unwrap(), "rotate_180");
+    check(&rotate_270(&image).unwrap(), "rotate_270");
+    check(
+        &resize_exact(&image, 4, 4, Interpolation::Bilinear).unwrap(),
+        "resize_exact",
+    );
+    check(&crop(&image, 0, 0, 1, 1).unwrap(), "crop");
+}
+
+// =========================================================================
+// Deep testing: double-flip = identity
+// =========================================================================
+
+#[test]
+fn double_flip_horizontal_is_identity() {
+    let image = rgba_image();
+    let once = flip_horizontal(&image).expect("flip");
+    let twice = flip_horizontal(&once).expect("flip");
+    assert_eq!(image.to_rgba8(), twice.to_rgba8());
+}
+
+#[test]
+fn double_flip_vertical_is_identity() {
+    let image = rgba_image();
+    let once = flip_vertical(&image).expect("flip");
+    let twice = flip_vertical(&once).expect("flip");
+    assert_eq!(image.to_rgba8(), twice.to_rgba8());
+}
+
+// =========================================================================
+// Deep testing: rotate round-trip (4x 90 = identity)
+// =========================================================================
+
+#[test]
+fn four_rotate_90_is_identity() {
+    let image = rgba_image();
+    let r1 = rotate_90(&image).expect("rotate");
+    let r2 = rotate_90(&r1).expect("rotate");
+    let r3 = rotate_90(&r2).expect("rotate");
+    let r4 = rotate_90(&r3).expect("rotate");
+    assert_eq!(image.to_rgba8(), r4.to_rgba8());
 }

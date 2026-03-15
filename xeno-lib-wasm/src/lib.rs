@@ -112,8 +112,16 @@ pub fn crop(
     x2: u32,
     y2: u32,
 ) -> Result<Vec<u8>, JsValue> {
+    if x2 <= x1 || y2 <= y1 {
+        return Err(JsValue::from_str(&format!(
+            "Invalid crop region: ({}, {}) to ({}, {}) — x2 must be > x1 and y2 must be > y1",
+            x1, y1, x2, y2
+        )));
+    }
+    let crop_width = x2 - x1;
+    let crop_height = y2 - y1;
     let img = rgba_to_dynamic(data, width, height)?;
-    let result = xeno_lib::crop(&img, x1, y1, x2, y2).map_err(map_err)?;
+    let result = xeno_lib::crop(&img, x1, y1, crop_width, crop_height).map_err(map_err)?;
     Ok(dynamic_to_rgba(&result))
 }
 
@@ -366,4 +374,158 @@ pub fn rgba_to_nv12(rgba: &[u8], width: u32, height: u32) -> Result<Vec<u8>, JsV
     }
 
     Ok(nv12)
+}
+
+// ===========================================================================
+// Tests
+// ===========================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ---- YUV420 to RGBA ----
+
+    #[test]
+    fn yuv420_pure_white() {
+        // Pure white: Y=235 (studio range) or Y=255 (full range), U=128, V=128
+        // Using full-range: Y=255, U=128, V=128 -> should give (255, 255, 255)
+        let y = vec![255u8; 4]; // 2x2
+        let u = vec![128u8; 1]; // 1x1
+        let v = vec![128u8; 1]; // 1x1
+        let rgba = yuv420_to_rgba(&y, &u, &v, 2, 2).expect("convert succeeds");
+
+        // With BT.709: R = Y + 1.5748 * (V-128), G = Y - 0.1873*(U-128) - 0.4681*(V-128), B = Y + 1.8556*(U-128)
+        // When U=128, V=128: R = 255, G = 255, B = 255
+        assert_eq!(rgba[0], 255, "R should be 255 for pure white");
+        assert_eq!(rgba[1], 255, "G should be 255 for pure white");
+        assert_eq!(rgba[2], 255, "B should be 255 for pure white");
+        assert_eq!(rgba[3], 255, "A should be 255");
+    }
+
+    #[test]
+    fn yuv420_pure_black() {
+        let y = vec![0u8; 4]; // 2x2
+        let u = vec![128u8; 1];
+        let v = vec![128u8; 1];
+        let rgba = yuv420_to_rgba(&y, &u, &v, 2, 2).expect("convert succeeds");
+
+        assert_eq!(rgba[0], 0, "R should be 0 for pure black");
+        assert_eq!(rgba[1], 0, "G should be 0 for pure black");
+        assert_eq!(rgba[2], 0, "B should be 0 for pure black");
+        assert_eq!(rgba[3], 255, "A should be 255");
+    }
+
+    // Note: error-path tests (odd dimensions, zero dimensions) cannot be tested
+    // natively because JsValue::from_str panics outside a WASM environment.
+    // These error paths must be tested via wasm-pack test.
+
+    // ---- RGBA to NV12 ----
+
+    #[test]
+    fn rgba_to_nv12_pure_white_produces_correct_y() {
+        // Pure white RGBA: R=255, G=255, B=255
+        let rgba: Vec<u8> = (0..4).flat_map(|_| vec![255u8, 255, 255, 255]).collect();
+        let nv12 = rgba_to_nv12(&rgba, 2, 2).expect("convert succeeds");
+
+        // Y should be ~255 for white: 0.2126*255 + 0.7152*255 + 0.0722*255 = 255
+        assert_eq!(nv12[0], 255, "Y of pure white should be 255");
+        assert_eq!(nv12[1], 255);
+        assert_eq!(nv12[2], 255);
+        assert_eq!(nv12[3], 255);
+    }
+
+    #[test]
+    fn rgba_to_nv12_pure_black_produces_correct_y() {
+        let rgba: Vec<u8> = (0..4).flat_map(|_| vec![0u8, 0, 0, 255]).collect();
+        let nv12 = rgba_to_nv12(&rgba, 2, 2).expect("convert succeeds");
+        assert_eq!(nv12[0], 0, "Y of pure black should be 0");
+    }
+
+    // Note: rgba_to_nv12 error path tests require WASM environment (JsValue).
+
+    // ---- RGBA -> NV12 -> YUV420 -> RGBA roundtrip ----
+
+    #[test]
+    fn rgba_nv12_roundtrip_white_preserves_color() {
+        let rgba_in: Vec<u8> = (0..4).flat_map(|_| vec![255u8, 255, 255, 255]).collect();
+        let nv12 = rgba_to_nv12(&rgba_in, 2, 2).expect("to nv12");
+
+        // NV12 layout: Y plane (4 bytes) + interleaved UV plane (2 bytes)
+        let y_plane = &nv12[0..4];
+        // Convert NV12 UV to planar U/V for yuv420_to_rgba
+        // NV12: [Cb0, Cr0] for the single 2x2 block
+        let u_plane = vec![nv12[4]];
+        let v_plane = vec![nv12[5]];
+
+        let rgba_out = yuv420_to_rgba(y_plane, &u_plane, &v_plane, 2, 2).expect("to rgba");
+
+        // Allow quantization error of +/- 2
+        for i in 0..4 {
+            let offset = i * 4;
+            for c in 0..3 {
+                assert!(
+                    (rgba_out[offset + c] as i16 - 255).abs() <= 2,
+                    "roundtrip white pixel channel {} at pixel {}: expected ~255, got {}",
+                    c, i, rgba_out[offset + c]
+                );
+            }
+        }
+    }
+
+    // ---- WASM crop fix ----
+
+    #[test]
+    fn crop_converts_x2_y2_to_width_height() {
+        // 4x4 RGBA image
+        let mut data = vec![0u8; 4 * 4 * 4];
+        // Set pixel (1, 1) to red
+        let idx = (1 * 4 + 1) * 4;
+        data[idx] = 255;
+        data[idx + 3] = 255;
+
+        // Crop from (1, 1) to (3, 3) -> should be 2x2 region
+        let result = crop(&data, 4, 4, 1, 1, 3, 3).expect("crop succeeds");
+        // Result should be 2x2 = 16 bytes
+        assert_eq!(result.len(), 2 * 2 * 4, "crop should produce 2x2 result");
+        // First pixel of the crop should be (1,1) from original = red
+        assert_eq!(result[0], 255, "first pixel R should be 255");
+    }
+
+    // Note: crop error path tests require WASM environment (JsValue).
+
+    // ---- Flip identity tests ----
+
+    #[test]
+    fn flip_horizontal_double_is_identity() {
+        let data: Vec<u8> = (0..16).collect();
+        let once = flip_horizontal(&data, 2, 2).expect("flip");
+        let twice = flip_horizontal(&once, 2, 2).expect("flip");
+        assert_eq!(twice, data);
+    }
+
+    #[test]
+    fn flip_vertical_double_is_identity() {
+        let data: Vec<u8> = (0..16).collect();
+        let once = flip_vertical(&data, 2, 2).expect("flip");
+        let twice = flip_vertical(&once, 2, 2).expect("flip");
+        assert_eq!(twice, data);
+    }
+
+    // Note: buffer validation error tests require WASM environment (JsValue panics natively).
+
+    // ---- Invert(invert) = identity ----
+
+    #[test]
+    fn wasm_double_invert_is_identity() {
+        let data = vec![
+            100, 150, 200, 255,
+            50, 75, 100, 128,
+            200, 100, 50, 64,
+            0, 255, 128, 255,
+        ];
+        let once = invert(&data, 2, 2).expect("invert");
+        let twice = invert(&once, 2, 2).expect("invert");
+        assert_eq!(twice, data, "invert(invert) must be identity");
+    }
 }

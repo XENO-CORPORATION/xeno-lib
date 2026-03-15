@@ -256,10 +256,10 @@ pub fn trim_video<P: AsRef<Path>>(input: P, output: P, config: TrimConfig) -> Vi
         let audio_start_pts = time_to_pts(
             config.start_time,
             1,
-            audio_info.as_ref().unwrap().sample_rate,
+            audio_info.as_ref().expect("audio_info checked Some above").sample_rate,
         );
         let audio_end_pts =
-            time_to_pts(config.end_time, 1, audio_info.as_ref().unwrap().sample_rate);
+            time_to_pts(config.end_time, 1, audio_info.as_ref().expect("audio_info checked Some above").sample_rate);
 
         while let Some(packet) = demuxer.next_audio_packet()? {
             if packet.pts < audio_start_pts {

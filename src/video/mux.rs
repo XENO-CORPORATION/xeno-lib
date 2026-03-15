@@ -225,13 +225,13 @@ impl<W: Write + Seek> AvMuxer<W> {
     pub fn new_with_writer(writer: W, config: AvMuxConfig) -> VideoResult<Self> {
         // Create MP4 configuration
         let mp4_config = Mp4Config {
-            major_brand: "isom".parse().unwrap(),
+            major_brand: "isom".parse().expect("valid FourCC literal"),
             minor_version: 512,
             compatible_brands: vec![
-                "isom".parse().unwrap(),
-                "iso2".parse().unwrap(),
-                "avc1".parse().unwrap(),
-                "mp41".parse().unwrap(),
+                "isom".parse().expect("valid FourCC literal"),
+                "iso2".parse().expect("valid FourCC literal"),
+                "avc1".parse().expect("valid FourCC literal"),
+                "mp41".parse().expect("valid FourCC literal"),
             ],
             timescale: config.timescale,
         };

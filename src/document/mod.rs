@@ -403,10 +403,10 @@ fn detect_document_corners(image: &DynamicImage) -> Option<[(u32, u32); 4]> {
     // Check if all corners were found
     if corners.iter().all(|c| c.is_some()) {
         Some([
-            corners[0].unwrap(),
-            corners[1].unwrap(),
-            corners[2].unwrap(),
-            corners[3].unwrap(),
+            corners[0].expect("all corners verified Some above"),
+            corners[1].expect("all corners verified Some above"),
+            corners[2].expect("all corners verified Some above"),
+            corners[3].expect("all corners verified Some above"),
         ])
     } else {
         None
@@ -460,10 +460,10 @@ fn find_corner_in_region(
 fn correct_perspective(image: &DynamicImage, corners: &[(u32, u32); 4]) -> DynamicImage {
     // Simple perspective correction - for now just crop to bounding box
     // Full perspective transform would require more complex math
-    let min_x = corners.iter().map(|c| c.0).min().unwrap();
-    let max_x = corners.iter().map(|c| c.0).max().unwrap();
-    let min_y = corners.iter().map(|c| c.1).min().unwrap();
-    let max_y = corners.iter().map(|c| c.1).max().unwrap();
+    let min_x = corners.iter().map(|c| c.0).min().expect("corners array is non-empty");
+    let max_x = corners.iter().map(|c| c.0).max().expect("corners array is non-empty");
+    let min_y = corners.iter().map(|c| c.1).min().expect("corners array is non-empty");
+    let max_y = corners.iter().map(|c| c.1).max().expect("corners array is non-empty");
 
     let width = max_x - min_x;
     let height = max_y - min_y;

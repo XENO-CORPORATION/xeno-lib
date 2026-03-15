@@ -364,7 +364,7 @@ pub fn rank_images(images: &[DynamicImage], config: &QualityConfig) -> Vec<(usiz
         .map(|(i, img)| (i, assess_quality(img, config)))
         .collect();
 
-    results.sort_by(|a, b| b.1.overall_score.partial_cmp(&a.1.overall_score).unwrap());
+    results.sort_by(|a, b| b.1.overall_score.partial_cmp(&a.1.overall_score).unwrap_or(std::cmp::Ordering::Equal));
     results
 }
 

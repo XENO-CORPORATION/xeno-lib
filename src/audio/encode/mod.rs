@@ -552,3 +552,125 @@ impl AudioOutputFormat {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sine_wave(sample_rate: u32, channels: u16, duration_secs: f32) -> Vec<f32> {
+        let num_samples = (sample_rate as f32 * duration_secs) as usize * channels as usize;
+        let mut samples = Vec::with_capacity(num_samples);
+        for i in 0..num_samples / channels as usize {
+            let t = i as f32 / sample_rate as f32;
+            let value = (2.0 * std::f32::consts::PI * 440.0 * t).sin() * 0.5;
+            for _ in 0..channels {
+                samples.push(value);
+            }
+        }
+        samples
+    }
+
+    // ---- WAV encoding correctness ----
+
+    #[test]
+    fn wav_16bit_encode_to_bytes_produces_valid_riff() {
+        let samples = sine_wave(44100, 2, 0.1);
+        let config = WavConfig::new(44100, 2).with_bits(16);
+        let bytes = encode_wav_to_bytes(&samples, config).expect("encode succeeds");
+
+        // Check RIFF header
+        assert_eq!(&bytes[0..4], b"RIFF", "WAV must start with RIFF");
+        // Check file size field (little-endian u32 at offset 4)
+        let file_size = u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]);
+        assert_eq!(
+            file_size as usize,
+            bytes.len() - 8,
+            "RIFF file size field must equal total size - 8"
+        );
+        // Check WAVE format
+        assert_eq!(&bytes[8..12], b"WAVE", "WAV must have WAVE format");
+    }
+
+    #[test]
+    fn wav_24bit_encode_to_bytes_produces_valid_riff() {
+        let samples = sine_wave(48000, 1, 0.05);
+        let config = WavConfig::new(48000, 1).with_bits(24);
+        let bytes = encode_wav_to_bytes(&samples, config).expect("encode succeeds");
+
+        assert_eq!(&bytes[0..4], b"RIFF");
+        let file_size = u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]);
+        assert_eq!(file_size as usize, bytes.len() - 8);
+        assert_eq!(&bytes[8..12], b"WAVE");
+    }
+
+    #[test]
+    fn wav_32bit_float_encode_to_bytes_produces_valid_riff() {
+        let samples = sine_wave(44100, 2, 0.1);
+        let config = WavConfig::new(44100, 2).with_float();
+        let bytes = encode_wav_to_bytes(&samples, config).expect("encode succeeds");
+
+        assert_eq!(&bytes[0..4], b"RIFF");
+        assert_eq!(&bytes[8..12], b"WAVE");
+    }
+
+    #[test]
+    fn wav_16bit_samples_correctly_quantized() {
+        // Encode a single sample of 0.5 as 16-bit
+        let samples = vec![0.5f32];
+        let config = WavConfig::new(44100, 1).with_bits(16);
+        let bytes = encode_wav_to_bytes(&samples, config).expect("encode succeeds");
+
+        // Find the data chunk - look for "data" marker
+        let data_pos = bytes
+            .windows(4)
+            .position(|w| w == b"data")
+            .expect("data chunk must exist");
+        let data_start = data_pos + 8; // skip "data" + size field
+
+        // Read the 16-bit sample (little-endian i16)
+        let sample_i16 = i16::from_le_bytes([bytes[data_start], bytes[data_start + 1]]);
+        // 0.5 * 32767 = 16383.5, truncated to i16 = 16383
+        let expected = (0.5f32 * 32767.0) as i16;
+        assert_eq!(sample_i16, expected, "16-bit quantization should be correct");
+    }
+
+    #[test]
+    fn wav_file_round_trip() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("test.wav");
+        let samples = sine_wave(44100, 2, 0.1);
+        let config = WavConfig::new(44100, 2).with_bits(16);
+        let count = encode_wav(&samples, &path, config).expect("encode succeeds");
+        assert_eq!(count, samples.len() as u64);
+        assert!(path.exists());
+
+        // Verify the file is a valid WAV
+        let file_bytes = std::fs::read(&path).expect("read file");
+        assert_eq!(&file_bytes[0..4], b"RIFF");
+        assert_eq!(&file_bytes[8..12], b"WAVE");
+    }
+
+    // ---- FLAC encoding ----
+
+    #[cfg(feature = "audio-encode-flac")]
+    #[test]
+    fn flac_encode_to_bytes_has_correct_magic() {
+        let samples = sine_wave(44100, 2, 0.1);
+        let config = FlacConfig::new(44100, 2);
+        let bytes = encode_flac_to_bytes(&samples, config).expect("encode succeeds");
+
+        // FLAC magic: "fLaC"
+        assert_eq!(&bytes[0..4], b"fLaC", "FLAC must start with fLaC magic number");
+    }
+
+    // ---- Audio format detection ----
+
+    #[test]
+    fn audio_output_format_extension_detection() {
+        assert_eq!(AudioOutputFormat::from_extension("wav"), Some(AudioOutputFormat::Wav));
+        assert_eq!(AudioOutputFormat::from_extension("WAVE"), Some(AudioOutputFormat::Wav));
+        assert_eq!(AudioOutputFormat::from_extension("flac"), Some(AudioOutputFormat::Flac));
+        assert_eq!(AudioOutputFormat::from_extension("ogg"), Some(AudioOutputFormat::Opus));
+        assert_eq!(AudioOutputFormat::from_extension("mp3"), None);
+    }
+}
