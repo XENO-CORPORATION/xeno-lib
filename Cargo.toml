@@ -22,8 +22,9 @@ ort = { version = "=2.0.0-rc.10", optional = true }
 ndarray = { version = "0.16", optional = true }
 
 # Video encoding (Phase 2)
-# Note: "asm" feature requires NASM. Disable for pure Rust fallback.
-rav1e = { version = "0.7", optional = true }
+# Note: "asm" feature requires NASM. Disable rav1e defaults to avoid
+# pulling its CLI/git metadata stack into library builds.
+rav1e = { version = "0.7", optional = true, default-features = false, features = ["asm", "threading"] }
 mp4 = { version = "0.14", optional = true }
 
 # H.264 encode/decode via OpenH264 (Cisco's open-source H.264 codec)
@@ -53,7 +54,7 @@ audiopus = { version = "0.2", optional = true }   # Opus encoding (libopus bindi
 dav1d = { version = "0.10", optional = true }  # AV1 software decoder (requires system dav1d)
 
 # MP4 muxing support
-bytes = { version = "1.5", optional = true }     # For MP4 sample data
+bytes = { version = "1.11.1", optional = true }  # For MP4 sample data
 
 # Container demuxing
 matroska = { version = "0.29", optional = true }  # MKV/WebM demuxing
@@ -62,7 +63,7 @@ matroska = { version = "0.29", optional = true }  # MKV/WebM demuxing
 ab_glyph = { version = "0.2", optional = true }   # Font loading and glyph rasterization
 
 # Raster -> Vector (SVG)
-vtracer = { version = "0.6.5", optional = true }   # High-quality image vectorization to SVG
+vtracer = { version = "0.6.5", path = "vendor/vtracer", optional = true }  # High-quality image vectorization to SVG
 
 [patch.crates-io]
 flacenc = { path = "vendor/flacenc" }
