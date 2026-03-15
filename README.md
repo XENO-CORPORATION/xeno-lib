@@ -581,7 +581,9 @@ Licensed under the [Apache License 2.0](LICENSE).
 Important: source code in this repository is Apache-2.0, but optional models,
 runtime backends, codecs, and external toolchains may have their own licenses,
 patent terms, or redistribution rules. Review upstream terms before shipping a
-commercial product that enables those components.
+commercial product that enables those components. See `docs/LICENSE_POLICY.md`
+for the current dependency license policy, accepted exceptions, and known
+commercial-use cautions.
 
 ---
 

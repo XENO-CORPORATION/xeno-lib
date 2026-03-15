@@ -23,6 +23,27 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  license-policy:
+    name: License Policy (Ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+
+      - name: Enforce dependency license policy
+        run: cargo deny --all-features --locked check licenses
+
   check-all-features:
     name: Check (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

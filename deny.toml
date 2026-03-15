@@ -1,3 +1,7 @@
+# cargo-deny graph configuration
+[graph]
+all-features = true
+
 # cargo-deny configuration
 # https://embarkstudios.github.io/cargo-deny/
 
@@ -15,13 +19,36 @@ allow = [
     "ISC",
     "Zlib",
     "Unicode-3.0",
-    "Unicode-DFS-2016",
-    "BSL-1.0",
     "CC0-1.0",
-    "MPL-2.0",
-    "OpenSSL",
 ]
 confidence-threshold = 0.8
+exceptions = [
+    { allow = ["MPL-2.0"], crate = "symphonia" },
+    { allow = ["MPL-2.0"], crate = "symphonia-bundle-flac" },
+    { allow = ["MPL-2.0"], crate = "symphonia-bundle-mp3" },
+    { allow = ["MPL-2.0"], crate = "symphonia-codec-aac" },
+    { allow = ["MPL-2.0"], crate = "symphonia-codec-adpcm" },
+    { allow = ["MPL-2.0"], crate = "symphonia-codec-alac" },
+    { allow = ["MPL-2.0"], crate = "symphonia-codec-pcm" },
+    { allow = ["MPL-2.0"], crate = "symphonia-codec-vorbis" },
+    { allow = ["MPL-2.0"], crate = "symphonia-core" },
+    { allow = ["MPL-2.0"], crate = "symphonia-format-caf" },
+    { allow = ["MPL-2.0"], crate = "symphonia-format-isomp4" },
+    { allow = ["MPL-2.0"], crate = "symphonia-format-mkv" },
+    { allow = ["MPL-2.0"], crate = "symphonia-format-ogg" },
+    { allow = ["MPL-2.0"], crate = "symphonia-format-riff" },
+    { allow = ["MPL-2.0"], crate = "symphonia-metadata" },
+    { allow = ["MPL-2.0"], crate = "symphonia-utils-xiph" },
+    { allow = ["NCSA"], crate = "libfuzzer-sys" },
+    { allow = ["CDLA-Permissive-2.0"], crate = "webpki-root-certs" },
+]
+
+[[licenses.clarify]]
+crate = "nom-exif@2.7.0"
+expression = "MIT"
+license-files = [
+    { path = "LICENSE", hash = 0x62725473 },
+]
 
 [bans]
 multiple-versions = "warn"
