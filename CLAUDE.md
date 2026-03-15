@@ -61,8 +61,9 @@ Apps depend on specific models by name and output format. Removing one breaks fe
 
 ### 5. No FFmpeg — Build Our Own
 
-The user has explicitly mandated: **no FFmpeg dependency**. We build our own codec stack:
+The user has explicitly mandated: **no FFmpeg dependency**. "Zero FFmpeg" means no FFmpeg dependency, NOT no C code. C bindings to vendor SDKs (NVIDIA NVENC, Intel QSV, AMD AMF) are acceptable and necessary for hardware acceleration. Pure Rust is preferred where crates exist; C bindings are acceptable for hardware/proprietary interfaces. Depending on a monolithic 3M-line C project (FFmpeg) is not acceptable.
 
+Current codec stack:
 - Video encode: rav1e (AV1, pure Rust), OpenH264 (H.264, BSD C)
 - Video decode: dav1d (AV1, C), OpenH264 (H.264), NVDEC (GPU, dynamic loading)
 - Audio decode: symphonia (pure Rust — MP3, AAC, FLAC, Vorbis, ALAC, WAV)
@@ -70,7 +71,14 @@ The user has explicitly mandated: **no FFmpeg dependency**. We build our own cod
 - Container: mp4 crate (MP4 mux/demux), matroska crate (MKV/WebM demux)
 - Image: image crate (pure Rust — PNG, JPEG, WebP, GIF, BMP, TIFF)
 
-Planned additions: H.265/HEVC, VP9, NVENC hardware encode, QSV, AMF, pure Rust AAC encode.
+#### FFmpeg Replacement Roadmap
+
+- **Phase 1 (COMPLETE):** Foundation — pure Rust image/audio processing, AV1+H.264 encode, 17 AI models, MP4 muxing, agent JSON API.
+- **Phase 2 (Next):** Electron integration via N-API bindings + decode expansion (H.265, VP9, NVDEC hardening, platform prebuilds).
+- **Phase 3:** Hardware encoding (NVENC, QSV, AMF, VideoToolbox) + codec expansion (ProRes, DNxHR, AAC/MP3 encode, MKV/MOV containers).
+- **Phase 4:** Professional feature parity — 100+ filters, color grading pipeline, video stabilization, advanced audio effects, multi-stream muxing.
+
+Priority order: Phase 1 (done) -> Phase 2 (N-API + decode) -> Phase 3 (hardware encode) -> Phase 4 (professional parity).
 
 ## The 17 Models
 

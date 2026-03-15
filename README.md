@@ -538,7 +538,18 @@ Download ONNX models to `~/.xeno-lib/models/`:
 
 ---
 
-## FFmpeg Comparison
+## FFmpeg Replacement Roadmap
+
+### The Goal
+
+Replace all dependency on FFmpeg with XENO-owned infrastructure. NOT "zero C code" — that's unrealistic for hardware encoders. The goal is: **zero FFmpeg dependency, full pipeline control, AI capabilities FFmpeg can never have.**
+
+Some things will never be pure Rust and that's OK:
+- NVENC/QSV/AMF — proprietary GPU hardware encoders require C/C++ vendor SDKs
+- ONNX Runtime — C++ library, `ort` crate is bindings
+- Some codecs (H.264/H.265 are patent-encumbered)
+
+C bindings to specific vendor SDKs (NVIDIA, Intel) are fine. Depending on a monolithic 3M-line C project (FFmpeg) is not.
 
 FFmpeg parity is tracked by a generated, spec-driven matrix:
 - Spec: `benchmarks/ffmpeg/parity_spec.json`
@@ -546,27 +557,67 @@ FFmpeg parity is tracked by a generated, spec-driven matrix:
 - Current generated report: `benchmarks/ffmpeg/results/latest.md` (CI artifact)
 - Regression baseline: `benchmarks/ffmpeg/baseline.json`
 
-### What xeno-lib Does That FFmpeg Cannot
+### Phase 1 — Foundation (COMPLETE)
 
-| Capability | xeno-lib | FFmpeg |
-|------------|----------|--------|
-| AI Upscaling (Real-ESRGAN) | 2x/4x/8x neural super-resolution | None |
-| Background Removal (BiRefNet) | Deep learning segmentation | None |
-| Face Restoration (GFPGAN) | Photo-quality face repair | None |
-| Image Colorization (DDColor) | Automatic B&W colorization | None |
-| Object Removal (LaMa) | Content-aware inpainting | None |
-| Depth Estimation (MiDaS) | Monocular depth maps | None |
-| Speech-to-Text (Whisper) | Transcription with timestamps | None |
-| Voice Isolation (Demucs) | 4-stem source separation | None |
-| Style Transfer | Neural artistic styles | None |
-| OCR (PaddleOCR) | Multi-language text recognition | None |
-| Pose Estimation (MoveNet) | 17-keypoint body detection | None |
-| Face Analysis | Age/gender/emotion detection | None |
-| Quality Assessment | Comprehensive image metrics | Basic PSNR/SSIM |
-| Document Processing | Deskew, binarize, perspective | None |
-| Memory Safety | Rust compiler guarantees | Manual C/C++ |
+- Pure Rust image processing (52 transforms, SIMD AVX2)
+- Pure Rust audio decode (symphonia — MP3, AAC, FLAC, Vorbis, ALAC, WAV, AIFF)
+- Pure Rust audio encode (WAV via hound, FLAC via flacenc, Opus via audiopus)
+- Pure Rust AV1 encode (rav1e)
+- H.264 encode (OpenH264 — Cisco C library, BSD licensed)
+- 17 AI models via ONNX Runtime + CUDA
+- Agent-friendly JSON API
+- MP4 container muxing
 
-### Parity Achieved
+### Phase 2 — Electron Integration & Decode Expansion
+
+- N-API bindings via napi-rs (so Electron apps call xeno-lib directly, not subprocess)
+- Async N-API with streaming results for large operations
+- Platform-specific prebuilt binaries (Windows x64, macOS ARM64, Linux x64)
+- H.265/HEVC decode (via minimal C binding or pure Rust when available)
+- VP9 decode
+- Hardware decode: NVDEC (NVIDIA GPU) — already partially implemented via libloading
+- Software AV1 decode improvement (dav1d integration hardening)
+
+### Phase 3 — Hardware Encoding & Codec Expansion
+
+- NVENC (NVIDIA hardware H.264/H.265/AV1 encode) — C SDK bindings, 10-50x faster than CPU
+- QSV (Intel Quick Sync) — C SDK bindings
+- AMF (AMD Advanced Media Framework) — C SDK bindings
+- VideoToolbox (macOS hardware encode) — ObjC/C bindings
+- ProRes encode/decode (reverse-engineered or FFmpeg-independent implementation)
+- DNxHR/DNxHD for professional video workflows
+- AAC encode (via fdk-aac bindings or pure Rust implementation when mature)
+- MP3 encode (via lame bindings)
+- MKV/WebM container support (matroska crate expansion)
+- MOV container support
+
+### Phase 4 — Professional Feature Parity
+
+- 100+ filters/effects that creative apps actually need (not all 400+ FFmpeg filters — most are niche)
+- Professional color grading pipeline (LUT application, color space conversions)
+- Video stabilization
+- Advanced audio effects (multiband compression, limiter, de-esser, noise gate)
+- Subtitle burning/rendering
+- Multi-stream muxing (multiple audio tracks, subtitle tracks)
+- Chapter/metadata support
+- Thumbnail/poster frame extraction at scale
+
+### What We Will NEVER Build (and why)
+
+- Streaming protocols (RTMP/RTSP/HLS/DASH) — XENO is a creative suite, not a streaming platform
+- 400+ niche FFmpeg filters — we build what our apps need, not a kitchen sink
+- Legacy format support (FLV, WMV, RealMedia) — nobody needs these in 2026
+
+### What We Have That FFmpeg NEVER Will
+
+- 17 AI models integrated (upscale, bg removal, inpainting, face restore, depth, OCR, pose, transcription, stem separation, noise reduction, style transfer, segmentation, frame interpolation, face detection, face analysis, colorization, color transfer)
+- Memory-safe Rust codebase
+- Native Rust API with proper types (not CLI string parsing)
+- WASM compilation target (runs in browser)
+- Agent-friendly JSON API for AI automation
+- Designed for real-time creative app embedding, not batch processing
+
+### Parity Achieved (Phase 1)
 
 - Image transforms (flip, rotate, crop, resize, perspective, affine)
 - Color adjustments (brightness, contrast, saturation, hue, gamma, exposure)

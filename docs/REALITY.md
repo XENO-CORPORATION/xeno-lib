@@ -1,6 +1,6 @@
 # xeno-lib Reality Check
 
-> Status note (March 5, 2026): use `benchmarks/ffmpeg/OVERCOME_TRACKER.md` for the active roadmap and `benchmarks/ffmpeg/results/latest.md` for the CI-generated parity snapshot. This file is still useful context, but it is not the operational source of truth.
+> Status note (March 15, 2026): use `benchmarks/ffmpeg/OVERCOME_TRACKER.md` for the active roadmap and `benchmarks/ffmpeg/results/latest.md` for the CI-generated parity snapshot. This file is still useful context, but it is not the operational source of truth.
 
 > **This document is an honest assessment of where xeno-lib stands compared to FFmpeg and other industry tools. No marketing, just facts.**
 
@@ -8,9 +8,9 @@
 
 ## The Hard Truth
 
-**We're at maybe 15-20% of FFmpeg's capabilities for video/audio.**
+**We're at maybe 15-20% of FFmpeg's capabilities for video/audio — but we have a clear 4-phase plan to close the gap on everything that matters for creative apps, and we already surpass FFmpeg in AI capabilities it will never have.**
 
-The README claims impressive features, but let's be real about what actually works and what's missing.
+The goal is NOT "zero C code" — that's unrealistic. The goal is **zero FFmpeg dependency, full pipeline control, AI capabilities FFmpeg can never have.** C bindings to specific vendor SDKs (NVIDIA NVENC, Intel QSV, AMD AMF) are acceptable and necessary. Depending on a monolithic 3M-line C project is not.
 
 ---
 
@@ -108,18 +108,18 @@ The `video/edit.rs` module has code but:
 - No complex timeline editing
 - No audio sync handling for edits
 
-### Streaming - NONE
+### Streaming - INTENTIONALLY OUT OF SCOPE
 
 | Protocol | Status |
 |----------|--------|
-| RTMP | Not implemented |
-| RTSP | Not implemented |
-| HLS | Not implemented |
-| DASH | Not implemented |
-| SRT | Not implemented |
-| WebRTC | Not implemented |
+| RTMP | Not planned |
+| RTSP | Not planned |
+| HLS | Not planned |
+| DASH | Not planned |
+| SRT | Not planned |
+| WebRTC | Not planned |
 
-**Reality:** Zero streaming capability. Can't ingest or output streams.
+**Decision:** XENO is a creative suite (image editor, video editor, DAW), not a streaming platform. Streaming protocols are out of scope. This is not a gap — it's a deliberate boundary.
 
 ---
 
@@ -197,86 +197,99 @@ output = session.run(None, {"input": preprocessed_image})
 
 ## Honest Comparison Summary
 
-| Area | vs FFmpeg | Notes |
-|------|-----------|-------|
-| Video codec support | **5%** | Only AV1/H.264, no H.265/VP9/ProRes |
-| Audio codec support | **20%** | Decode OK, encode limited |
-| Container support | **10%** | MP4 basic only |
-| Filters | **5%** | ~20 vs 400+ |
-| Hardware acceleration | **0%** | None for encode/decode |
-| Streaming | **0%** | None |
-| Performance | **10-20%** | CPU only, no SIMD optimization |
-| Stability | **?%** | Untested in production |
-| AI features | **Unique** | Genuine differentiator |
-| API ergonomics | **Better** | Rust > CLI for integration |
-| Memory safety | **Better** | Rust guarantees |
-| Cross-platform | **Worse** | FFmpeg runs everywhere |
+| Area | vs FFmpeg | Phase to Address | Notes |
+|------|-----------|-----------------|-------|
+| Video codec support | **5%** | Phase 2-3 | Only AV1/H.264, H.265/VP9/ProRes coming |
+| Audio codec support | **20%** | Phase 3 | Decode OK, AAC/MP3 encode coming |
+| Container support | **10%** | Phase 3 | MP4 basic; MKV/MOV/WebM planned |
+| Filters | **5%** | Phase 4 | ~20 vs 400+; targeting 100+ that matter |
+| Hardware acceleration | **5%** | Phase 2-3 | Partial NVDEC; NVENC/QSV/AMF planned |
+| Streaming | **N/A** | Never | Out of scope by design |
+| Performance (CPU) | **10-20%** | Phase 3-4 | SIMD for transforms; codecs need hardware accel |
+| Stability | **?%** | Ongoing | Untested in production |
+| AI features | **Unique** | Done | 17 models FFmpeg will never have |
+| API ergonomics | **Better** | Done | Rust > CLI string parsing |
+| Memory safety | **Better** | Done | Rust compiler guarantees |
+| WASM/browser target | **Unique** | Done | FFmpeg can't run in browser natively |
 
 ---
 
-## Roadmap to Competitiveness
+## Roadmap to FFmpeg Independence
 
-### Phase 1: Core Codecs (3-4 months)
-- [ ] H.265/HEVC encoding (x265 bindings or pure Rust)
-- [ ] VP9 encoding
-- [ ] H.264/H.265 software decoding
-- [ ] AAC encoding
+The goal is NOT to replicate FFmpeg's entire 3M-line codebase. It's to build everything our creative apps (xeno-pixel, xeno-motion, xeno-sound) actually need, with AI capabilities FFmpeg will never have.
 
-### Phase 2: Hardware Acceleration (2-3 months)
-- [ ] NVENC encoding (H.264/H.265)
-- [ ] Complete NVDEC decoding
-- [ ] Intel QSV support
-- [ ] AMD AMF support
+### Phase 1 — Foundation (COMPLETE)
+- [x] Pure Rust image processing (52 transforms, SIMD AVX2)
+- [x] Pure Rust audio decode (symphonia — MP3, AAC, FLAC, Vorbis, ALAC, WAV, AIFF)
+- [x] Pure Rust audio encode (WAV via hound, FLAC via flacenc, Opus via audiopus)
+- [x] Pure Rust AV1 encode (rav1e)
+- [x] H.264 encode (OpenH264 — Cisco C library, BSD licensed)
+- [x] 17 AI models via ONNX Runtime + CUDA
+- [x] Agent-friendly JSON API
+- [x] MP4 container muxing
 
-### Phase 3: Containers & Muxing (2 months)
-- [ ] Full MP4 support (all features)
-- [ ] MKV muxing
-- [ ] WebM support
-- [ ] Proper seeking in all formats
+### Phase 2 — Electron Integration & Decode Expansion
+- [ ] N-API bindings via napi-rs (Electron apps call xeno-lib directly, not subprocess)
+- [ ] Async N-API with streaming results for large operations
+- [ ] Platform-specific prebuilt binaries (Windows x64, macOS ARM64, Linux x64)
+- [ ] H.265/HEVC decode (via minimal C binding or pure Rust when available)
+- [ ] VP9 decode
+- [ ] Hardware decode: NVDEC (NVIDIA GPU) — already partially implemented via libloading
+- [ ] Software AV1 decode improvement (dav1d integration hardening)
 
-### Phase 4: Streaming (2-3 months)
-- [ ] HLS output
-- [ ] RTMP input/output
-- [ ] DASH support
+### Phase 3 — Hardware Encoding & Codec Expansion
+- [ ] NVENC (NVIDIA hardware H.264/H.265/AV1 encode) — C SDK bindings, 10-50x faster than CPU
+- [ ] QSV (Intel Quick Sync) — C SDK bindings
+- [ ] AMF (AMD Advanced Media Framework) — C SDK bindings
+- [ ] VideoToolbox (macOS hardware encode) — ObjC/C bindings
+- [ ] ProRes encode/decode (reverse-engineered or FFmpeg-independent implementation)
+- [ ] DNxHR/DNxHD for professional video workflows
+- [ ] AAC encode (via fdk-aac bindings or pure Rust implementation when mature)
+- [ ] MP3 encode (via lame bindings)
+- [ ] MKV/WebM container support (matroska crate expansion)
+- [ ] MOV container support
 
-### Phase 5: Filters & Effects (2-3 months)
-- [ ] Filter graph system
-- [ ] More video filters (50+)
-- [ ] Temporal filters
-- [ ] Advanced audio processing
+### Phase 4 — Professional Feature Parity
+- [ ] 100+ filters/effects that creative apps actually need (not all 400+ FFmpeg filters — most are niche)
+- [ ] Professional color grading pipeline (LUT application, color space conversions)
+- [ ] Video stabilization
+- [ ] Advanced audio effects (multiband compression, limiter, de-esser, noise gate)
+- [ ] Subtitle burning/rendering
+- [ ] Multi-stream muxing (multiple audio tracks, subtitle tracks)
+- [ ] Chapter/metadata support
+- [ ] Thumbnail/poster frame extraction at scale
 
-### Phase 6: Production Hardening (Ongoing)
-- [ ] Comprehensive test suite
-- [ ] Fuzzing for security
-- [ ] Performance benchmarks
-- [ ] Documentation
-- [ ] Real-world testing
-
-**Total estimated effort: 12-18 months of focused development**
+### What We Will NEVER Build (and why)
+- Streaming protocols (RTMP/RTSP/HLS/DASH) — XENO is a creative suite, not a streaming platform
+- 400+ niche FFmpeg filters — we build what our apps need, not a kitchen sink
+- Legacy format support (FLV, WMV, RealMedia) — nobody needs these in 2026
 
 ---
 
 ## What xeno-lib Actually Is (Honest Positioning)
 
 ### What we ARE:
-- A Rust multimedia library with growing capabilities
-- A collection of AI-powered image/video processing tools
-- A nicer API than shelling out to FFmpeg
-- Good for Rust projects needing basic media handling
-- Unique AI features not available elsewhere
+- A Rust multimedia library purpose-built for AI-native creative applications
+- A growing FFmpeg-independent media pipeline with a clear 4-phase roadmap
+- 17 AI models integrated that FFmpeg will never have
+- A memory-safe alternative to the 3M-line C codebase that is FFmpeg
+- The compute backbone for xeno-pixel, xeno-motion, and xeno-sound
 
-### What we ARE NOT:
-- An FFmpeg replacement
-- Production-ready for mission-critical video pipelines
-- Suitable for streaming applications
-- A complete multimedia solution
+### What we ARE NOT (yet):
+- Feature-complete compared to FFmpeg for traditional codec/filter work (Phase 2-4 will close this gap)
+- Production-hardened at FFmpeg's scale (20+ years vs months)
+- A streaming solution (and never will be — out of scope by design)
+
+### What we ARE NOT (ever):
+- "Pure Rust, zero C code" — that was never realistic. Hardware encoders (NVENC, QSV, AMF) require vendor C SDKs. The actual goal is zero FFmpeg dependency, not zero C.
+- A kitchen-sink filter library — we build the 100+ filters creative apps need, not 400+ niche ones
 
 ### Best use cases today:
-1. AI-powered image processing (upscaling, background removal, etc.)
-2. Basic image transforms in Rust applications
-3. Simple video encoding for non-critical applications
-4. Projects where Rust integration matters more than feature completeness
-5. Prototyping and experimentation
+1. AI-powered image processing (upscaling, background removal, inpainting, face restore, depth, etc.)
+2. Image transforms and color adjustments (52 SIMD-accelerated operations)
+3. Audio decode + effects pipeline for DAW integration
+4. Basic video encoding (AV1, H.264) for creative app export
+5. Agent-driven media processing via JSON API
 
 ---
 
@@ -303,14 +316,31 @@ Use this section to track improvements:
 - [ ] Video editing (code exists, needs testing)
 - [ ] Audio visualization (code exists, needs testing)
 
-### Not Started - Critical
-- [ ] H.265/HEVC encoding
-- [ ] Hardware encoding (NVENC)
-- [ ] H.264/H.265 decoding
-- [ ] AAC encoding
-- [ ] Streaming protocols
+### Not Started — Phase 2 (Next Priority)
+- [ ] N-API bindings for Electron integration
+- [ ] H.265/HEVC decode
+- [ ] VP9 decode
+- [ ] NVDEC hardening
+
+### Not Started — Phase 3
+- [ ] NVENC hardware encoding
+- [ ] QSV / AMF hardware encoding
+- [ ] ProRes / DNxHR support
+- [ ] AAC / MP3 encoding
+- [ ] MKV/MOV container muxing
+
+### Not Started — Phase 4
+- [ ] 100+ creative filters
+- [ ] Professional color grading pipeline
+- [ ] Video stabilization
+- [ ] Advanced audio effects (multiband compression, limiter, de-esser)
+
+### Explicitly Out of Scope
+- Streaming protocols (RTMP/RTSP/HLS/DASH) — not a streaming platform
+- 400+ niche FFmpeg filters — only what creative apps need
+- Legacy formats (FLV, WMV, RealMedia)
 
 ---
 
-*Last updated: 2024-12-30*
+*Last updated: 2026-03-15*
 *This document should be updated as capabilities improve.*
