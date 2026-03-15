@@ -1,8 +1,23 @@
 name: CI
 
+run-name: >-
+  ${{ github.event_name == 'pull_request'
+      && format('CI / PR #{0}: {1}', github.event.pull_request.number, github.event.pull_request.title)
+      || format('CI / {0}', github.ref_name) }}
+
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
+    branches:
+      - master
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
@@ -11,6 +26,7 @@ jobs:
   check-all-features:
     name: Check (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -25,6 +41,9 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@v2
 
       - name: Install dependencies (Ubuntu)
         if: runner.os == 'Linux'
@@ -106,6 +125,7 @@ jobs:
   test-linux:
     name: Tests (Ubuntu)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -113,6 +133,9 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@v2
 
       - name: Install dependencies
         run: |
@@ -128,6 +151,7 @@ jobs:
   benchmark-regression:
     name: Competitive Benchmarks (Ubuntu)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -135,6 +159,9 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@v2
 
       - name: Install benchmark dependencies
         run: |
@@ -186,6 +213,7 @@ jobs:
   ffmpeg-parity:
     name: FFmpeg Parity Matrix (Ubuntu)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -193,6 +221,9 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@v2
 
       - name: Install parity dependencies
         run: |

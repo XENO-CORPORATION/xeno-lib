@@ -1,5 +1,10 @@
 name: CLA Assistant
 
+run-name: >-
+  ${{ github.event_name == 'pull_request_target'
+      && format('CLA / PR #{0}', github.event.pull_request.number)
+      || format('CLA / Issue #{0}', github.event.issue.number) }}
+
 on:
   issue_comment:
     types: [created]
