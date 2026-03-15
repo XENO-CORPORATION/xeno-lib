@@ -53,7 +53,7 @@ audiopus = { version = "0.2", optional = true }   # Opus encoding (libopus bindi
 dav1d = { version = "0.10", optional = true }  # AV1 software decoder (requires system dav1d)
 
 # MP4 muxing support
-bytes = { version = "1.5", optional = true }     # For MP4 sample data
+bytes = { version = "1.11", optional = true }     # For MP4 sample data
 
 # Container demuxing
 matroska = { version = "0.29", optional = true }  # MKV/WebM demuxing
