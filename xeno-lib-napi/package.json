@@ -29,6 +29,8 @@
   "scripts": {
     "build": "napi build --platform --release",
     "build:debug": "napi build --platform",
+    "check": "cargo check",
+    "test": "cargo test",
     "prepublishOnly": "napi prepublish -t npm",
     "artifacts": "napi artifacts"
   },

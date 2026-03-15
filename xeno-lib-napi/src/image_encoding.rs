@@ -1,29 +1,57 @@
 //! Image encoding bindings (Priority 1 -- for xeno-pixel export).
 //!
 //! Encode raw RGBA buffers to common image formats (PNG, JPEG, WebP).
+//! Quality parameters are clamped to valid ranges rather than rejected,
+//! matching the behavior of most image editors.
 
 use image::DynamicImage;
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
 use crate::helpers::buffer_to_image;
+use crate::validation::clamp_quality;
 
-/// Encode an RGBA buffer to PNG.
+/// Encode an RGBA buffer to PNG format.
 ///
-/// Returns a `Buffer` containing the compressed PNG bytes.
+/// # Arguments
+/// * `buffer` - RGBA u8 pixel data (4 bytes per pixel, row-major)
+/// * `width` - Image width in pixels (must be > 0)
+/// * `height` - Image height in pixels (must be > 0)
+///
+/// # Returns
+/// A `Buffer` containing the compressed PNG file bytes.
+///
+/// # Errors
+/// - If buffer size does not match `width * height * 4`
+/// - If width or height is zero
+/// - If PNG encoding fails
 #[napi]
 pub fn encode_png(buffer: Buffer, width: u32, height: u32) -> Result<Buffer> {
     let img = buffer_to_image(&buffer, width, height)?;
     encode_image_format(&img, image::ImageFormat::Png)
 }
 
-/// Encode an RGBA buffer to JPEG.
+/// Encode an RGBA buffer to JPEG format.
 ///
-/// `quality` is 1-100 (higher = better quality, larger file).
+/// Alpha channel is discarded (JPEG does not support transparency).
+///
+/// # Arguments
+/// * `buffer` - RGBA u8 pixel data (4 bytes per pixel, row-major)
+/// * `width` - Image width in pixels (must be > 0)
+/// * `height` - Image height in pixels (must be > 0)
+/// * `quality` - JPEG quality (1-100, clamped if out of range; higher = better quality)
+///
+/// # Returns
+/// A `Buffer` containing the compressed JPEG file bytes.
+///
+/// # Errors
+/// - If buffer size does not match `width * height * 4`
+/// - If width or height is zero
+/// - If JPEG encoding fails
 #[napi]
 pub fn encode_jpeg(buffer: Buffer, width: u32, height: u32, quality: u32) -> Result<Buffer> {
     let img = buffer_to_image(&buffer, width, height)?;
-    let quality = quality.clamp(1, 100) as u8;
+    let quality = clamp_quality(quality) as u8;
 
     // JPEG doesn't support alpha, convert RGBA to RGB
     let rgb = DynamicImage::ImageRgb8(img.to_rgb8());
@@ -35,13 +63,25 @@ pub fn encode_jpeg(buffer: Buffer, width: u32, height: u32, quality: u32) -> Res
     Ok(out.into_inner().into())
 }
 
-/// Encode an RGBA buffer to WebP.
+/// Encode an RGBA buffer to WebP format.
 ///
-/// `quality` is 1-100 (higher = better quality, larger file).
+/// # Arguments
+/// * `buffer` - RGBA u8 pixel data (4 bytes per pixel, row-major)
+/// * `width` - Image width in pixels (must be > 0)
+/// * `height` - Image height in pixels (must be > 0)
+/// * `quality` - WebP quality (1-100, clamped if out of range; higher = better quality)
+///
+/// # Returns
+/// A `Buffer` containing the compressed WebP file bytes.
+///
+/// # Errors
+/// - If buffer size does not match `width * height * 4`
+/// - If width or height is zero
+/// - If WebP encoding fails
 #[napi]
 pub fn encode_webp(buffer: Buffer, width: u32, height: u32, quality: u32) -> Result<Buffer> {
     let img = buffer_to_image(&buffer, width, height)?;
-    let _quality = quality.clamp(1, 100);
+    let _quality = clamp_quality(quality);
 
     // The `image` crate supports WebP encoding through its built-in encoder.
     let mut out = std::io::Cursor::new(Vec::new());

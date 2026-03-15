@@ -2,18 +2,31 @@
 //!
 //! Audio decode is async (large files). Encode is sync (fast).
 //! All audio samples are f32 PCM (-1.0 to 1.0).
+//!
+//! # Input Validation
+//!
+//! - File paths are checked for existence before decoding.
+//! - Sample arrays are checked for emptiness and invalid values (NaN, Infinity).
+//! - Sample rate and channel count are validated for sane ranges.
+//! - WAV bit depth is validated to be one of: 8, 16, 24, 32.
 
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
+
+use crate::validation::{validate_audio_samples, validate_file_path, validate_wav_bit_depth};
 
 // ---------------------------------------------------------------------------
 // Result types exposed to TypeScript
 // ---------------------------------------------------------------------------
 
 /// Decoded audio data returned from `decode_audio`.
+///
+/// Samples are interleaved f32 PCM (-1.0 to 1.0), encoded as f64 for
+/// JavaScript compatibility (napi-rs does not support f32 arrays in
+/// object fields).
 #[napi(object)]
 pub struct AudioData {
-    /// Interleaved f32 PCM samples (-1.0 to 1.0).
+    /// Interleaved f32 PCM samples (-1.0 to 1.0), encoded as f64.
     pub samples: Vec<f64>,
     /// Sample rate in Hz (e.g., 44100, 48000).
     pub sample_rate: u32,
@@ -29,10 +42,25 @@ pub struct AudioData {
 
 /// Decode an audio file to raw f32 PCM samples.
 ///
-/// Supports MP3, AAC, FLAC, Vorbis, ALAC, WAV, AIFF, Ogg, and more.
-/// This is async because audio files can be large.
+/// Supports MP3, AAC, FLAC, Vorbis, ALAC, WAV, AIFF, Ogg, and more
+/// (via the Symphonia pure-Rust audio decoder).
+///
+/// # Arguments
+/// * `file_path` - Path to the audio file (must exist and be non-empty)
+///
+/// # Returns
+/// An `AudioData` object containing interleaved PCM samples, sample rate,
+/// channel count, and duration.
+///
+/// # Errors
+/// - If file path is empty
+/// - If the file does not exist
+/// - If the audio format is unsupported or the file is corrupt
+/// - If decoding fails for any reason
 #[napi(ts_return_type = "Promise<AudioData>")]
 pub async fn decode_audio(file_path: String) -> Result<AudioData> {
+    validate_file_path(&file_path)?;
+
     // Run the potentially slow decode on a blocking thread so we don't
     // block the libuv event loop.
     let decoded = tokio::task::spawn_blocking(move || {
@@ -63,7 +91,22 @@ pub async fn decode_audio(file_path: String) -> Result<AudioData> {
 
 /// Encode f32 PCM samples to WAV format.
 ///
-/// Returns a `Buffer` containing the WAV file bytes.
+/// # Arguments
+/// * `samples` - Interleaved PCM samples as f64 array (will be converted to f32 internally)
+/// * `sample_rate` - Sample rate in Hz (1-384000)
+/// * `channels` - Number of channels (1-32)
+/// * `bit_depth` - Bits per sample (8, 16, 24, or 32)
+///
+/// # Returns
+/// A `Buffer` containing the complete WAV file bytes (including header).
+///
+/// # Errors
+/// - If samples array is empty
+/// - If sample rate is zero or exceeds 384000
+/// - If channel count is zero or exceeds 32
+/// - If bit depth is not 8, 16, 24, or 32
+/// - If any sample is NaN or Infinity
+/// - If WAV encoding fails
 #[napi]
 pub fn encode_wav(
     samples: Float64Array,
@@ -71,6 +114,9 @@ pub fn encode_wav(
     channels: u32,
     bit_depth: u32,
 ) -> Result<Buffer> {
+    validate_audio_samples(&samples, sample_rate, channels)?;
+    validate_wav_bit_depth(bit_depth)?;
+
     let f32_samples: Vec<f32> = samples.iter().map(|&s| s as f32).collect();
 
     let config = xeno_lib::audio::encode::WavConfig {
@@ -87,15 +133,30 @@ pub fn encode_wav(
     Ok(bytes.into())
 }
 
-/// Encode f32 PCM samples to FLAC format.
+/// Encode f32 PCM samples to FLAC format (lossless compression).
 ///
-/// Returns a `Buffer` containing the FLAC file bytes.
+/// # Arguments
+/// * `samples` - Interleaved PCM samples as f64 array (will be converted to f32 internally)
+/// * `sample_rate` - Sample rate in Hz (1-384000)
+/// * `channels` - Number of channels (1-32)
+///
+/// # Returns
+/// A `Buffer` containing the complete FLAC file bytes.
+///
+/// # Errors
+/// - If samples array is empty
+/// - If sample rate is zero or exceeds 384000
+/// - If channel count is zero or exceeds 32
+/// - If any sample is NaN or Infinity
+/// - If FLAC encoding fails
 #[napi]
 pub fn encode_flac(
     samples: Float64Array,
     sample_rate: u32,
     channels: u32,
 ) -> Result<Buffer> {
+    validate_audio_samples(&samples, sample_rate, channels)?;
+
     let f32_samples: Vec<f32> = samples.iter().map(|&s| s as f32).collect();
 
     let config = xeno_lib::audio::encode::FlacConfig::new(sample_rate, channels as u16);
