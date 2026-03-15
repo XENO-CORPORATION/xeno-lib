@@ -1,0 +1,46 @@
+[package]
+name = "xeno-lib-napi"
+version = "0.1.0"
+edition = "2021"
+description = "N-API bindings for xeno-lib — exposes Rust image, audio, and AI processing to Node.js/Electron"
+license = "Apache-2.0"
+repository = "https://github.com/XENO-CORPORATION/xeno-lib"
+homepage = "https://github.com/XENO-CORPORATION/xeno-lib"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+xeno-lib = { path = "..", features = [
+  "background-removal",
+  "upscale",
+  "audio",
+  "audio-encode",
+  "audio-encode-flac",
+  "frame-interpolate",
+  "transcribe",
+  "audio-separate",
+] }
+
+# napi-rs v3 — the standard Rust → Node.js N-API bridge
+napi = { version = "3", features = ["async", "napi9"] }
+napi-derive = "3"
+
+# Image handling (same version as xeno-lib)
+image = { version = "0.25", default-features = true }
+
+# Async runtime for tokio-based async functions
+tokio = { version = "1", features = ["rt", "sync"] }
+
+[build-dependencies]
+napi-build = "2"
+
+[patch.crates-io]
+flacenc = { path = "../vendor/flacenc" }
+pastey = { path = "../vendor/pastey" }
+rav1e = { path = "../vendor/rav1e" }
+
+[features]
+default = []
+# GPU-accelerated AI inference
+cuda = []
