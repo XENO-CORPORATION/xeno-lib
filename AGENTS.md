@@ -1,111 +1,88 @@
-# Xeno Lib Agent Guide
+# agents.md — XENO Lib (for Codex CLI and AI agents)
 
-This repository is a public, production-grade open-source project. Treat every change as if it will be reviewed externally, preserved in long-term history, and used to judge the engineering quality of `xeno-lib`.
+## Identity
 
-## Operating Standard
+You are working on **xeno-lib**, the pure Rust multimedia processing library with 17 AI models. This is the COMPUTE layer of the XENO platform — Layer 2 in the architecture. Performance is everything.
 
-- Optimize for durable repository quality, not short-term convenience.
-- Prefer explicit, reviewable changes over clever shortcuts.
-- Keep the repository in a state that is safe to show publicly at any time.
-- Maintain truthful docs, honest capability reporting, and reproducible builds.
+## Ecosystem
 
-## Git And PR Workflow
+Read `../XENO CORPORATION - Full Ecosystem Report.md`. You are the compute backbone consumed by every creative app and the agent runtime. Other agents work on consumer repos simultaneously. Never assume you are alone.
 
-- Do not push feature or maintenance work directly to `master`.
-- Create a branch, push it, and land changes through a pull request.
-- Keep commit history intentional:
-  - use focused commits
-  - use clear conventional-style commit subjects
-  - avoid noisy fixup chains unless they will be squashed before merge
-- Preserve branch protection. Do not weaken repository rules unless the user explicitly asks, and restore them immediately after any temporary exception.
-- Prefer `rebase` merges to keep history linear unless the user requests otherwise.
+```
+YOUR REPO: xeno-lib (Layer 2 — Compute & AI)
+    ↑ consumed by: xeno-pixel (image AI: upscale, bg removal, inpaint, face restore, depth, OCR, pose, style transfer)
+    ↑ consumed by: xeno-motion (video AI: frame interpolation, transcription, audio separation)
+    ↑ consumed by: xeno-sound (audio AI: stem separation, noise reduction, transcription, DSP effects)
+    ↑ consumed by: xeno-hub (bg removal, format conversion via xeno-edit CLI)
+    ↑ invoked by: xeno-agent-sdk (agents call models via agent.rs JSON API)
+```
 
-## Commit Identity
+## Safety
 
-- Commits intended for PR review must use a GitHub-linked author identity.
-- If you create commits on behalf of the repo owner, use the GitHub-linked noreply email for that account.
-- If commits are authored with an email that GitHub cannot map to a user, the CLA workflow will not be able to verify that contributor through the required PR comment flow.
+1. **NEVER change model output formats.** Image outputs are RGBA u8. Audio outputs are f32 PCM. Masks are single-channel u8. Structured data is JSON. 5+ apps depend on these contracts.
+2. **NEVER remove a model.** Deprecate first, maintain for one major version, coordinate with all consumers.
+3. **NEVER add an FFmpeg dependency.** The mandate is pure Rust codecs. C bindings only when no viable Rust alternative exists (and must be justified).
+4. **NEVER change public function signatures or feature flag names** without checking all downstream consumers first.
+5. **NEVER merge code that regresses performance benchmarks or FFmpeg parity.**
+6. **Ask before any destructive or cross-repo-impacting action.**
 
-## Required Quality Gates
+## Stack
 
-Changes should be validated against the real repository standards, not a reduced local bar.
+- **Language**: Rust (2021 edition), pure Rust wherever possible
+- **AI inference**: ONNX Runtime + CUDA (via `ort` crate)
+- **SIMD**: AVX2 on x86_64, scalar fallbacks for all targets
+- **Video encode**: rav1e (AV1, pure Rust), OpenH264 (H.264, BSD C source)
+- **Video decode**: dav1d (AV1, C), OpenH264 (H.264), NVDEC (GPU, dynamic loading)
+- **Audio decode**: symphonia (pure Rust — MP3, AAC, FLAC, Vorbis, ALAC, WAV)
+- **Audio encode**: hound (WAV), flacenc (FLAC, pure Rust), audiopus (Opus)
+- **Audio DSP**: Pure Rust effects (reverb, EQ, pitch shift, delay, distortion, chorus, flanger)
+- **Image**: image crate (pure Rust — PNG, JPEG, WebP, GIF, BMP, TIFF)
+- **Containers**: mp4 crate (MP4), matroska crate (MKV/WebM)
+- **Vectorization**: vtracer (vendored, raster-to-SVG)
 
-- For code or dependency changes, prefer running:
-  - `cargo test --all-features --locked`
-  - `cargo build --manifest-path xeno-edit/Cargo.toml --release --locked`
-- If dependency graph changes are involved, check the effective graph, not just manifests.
-- If workflows are changed, validate YAML locally before pushing.
-- If a change affects public capability claims, parity, benchmarks, or license posture, update the relevant docs and baselines.
+## Dependencies (Upstream)
 
-## CI Expectations
+- `ort` (ONNX Runtime) — AI model inference
+- `ndarray` — tensor manipulation for model I/O
+- `image` — image loading, saving, pixel manipulation
+- `rayon` — parallel iteration
+- `symphonia` — audio decoding
+- `rav1e` — AV1 video encoding (vendored)
+- `flacenc` — FLAC audio encoding (vendored)
 
-The repository intentionally enforces visible, objective checks.
+## Consumers (Downstream)
 
-- `Check (ubuntu-latest)`
-- `Check (windows-latest)`
-- `Check (macos-latest)`
-- `Tests (Ubuntu)`
-- `FFmpeg Parity Matrix (Ubuntu)`
-- `Competitive Benchmarks (Ubuntu)`
-- `License Policy (Ubuntu)`
-- `cla`
+| Consumer | What It Uses |
+|----------|-------------|
+| xeno-pixel | bg removal, upscale, inpaint, face restore, colorize, face detect, depth, OCR, pose, style transfer |
+| xeno-motion | frame interpolation, transcription, audio separation |
+| xeno-sound | audio separation, transcription, audio effects, visualization |
+| xeno-hub | bg removal, format conversion (via xeno-edit CLI) |
+| xeno-agent-sdk | agent.rs JSON API for programmatic model invocation |
 
-Do not merge changes that knowingly break these signals.
+## Critical Data Format Contracts
 
-## Security And Dependency Policy
+These are the integration points between xeno-lib and the rest of the platform. Breaking these breaks the ecosystem.
 
-- Keep the default branch free of open Dependabot alerts whenever practical.
-- Remove vulnerable dependencies from the actual resolved graph instead of dismissing alerts without a defensible reason.
-- Prefer dependency reductions and feature-pruning over advisory suppression.
-- Preserve or improve the repository security posture:
-  - secret scanning
-  - push protection
-  - dependency auditing
-  - branch protection
+| Data | Format | Contract |
+|------|--------|----------|
+| Image model output | RGBA u8 | 4 channels, 8 bits per channel, premultiplied alpha |
+| Audio model output | f32 PCM | Interleaved, at input sample rate |
+| Mask output | Single-channel u8 | 0 = background, 255 = foreground |
+| Depth map output | Single-channel f32 | Normalized 0.0 (near) to 1.0 (far) |
+| Bounding boxes | JSON | `{ x, y, width, height, confidence, label }` |
+| Keypoints | JSON | `{ points: [{ x, y, confidence }], connections }` |
+| Transcription | JSON | `{ segments: [{ text, start, end, words }] }` |
+| Model files | ONNX | Stored in `~/.xeno-lib/models/`, downloaded on first use |
 
-## Workflow Hygiene
+## Quality Gates
 
-- Avoid duplicate GitHub Actions runs.
-- Keep workflow names, run names, permissions, concurrency, and timeouts explicit.
-- Prefer first-party or minimal custom workflow logic over aging third-party automation when the third-party dependency becomes operational debt.
-- When replacing automation, keep behavior at least as strict as the previous setup.
-- Match workflow design to the organization security model. Do not build required checks that depend on permissions the organization explicitly disables.
-
-## Documentation And Public Surface
-
-- Keep the repo root curated.
-- Public documentation belongs in tracked files and, where appropriate, under `docs/`.
-- Internal scratch notes, local agent artifacts, and temporary working documents should not be committed.
-- `REALITY.md` stays tracked because the repo should maintain truthful status reporting.
-- Keep README, CLI docs, parity docs, and capability reporting aligned with the actual implementation.
-
-## Vendoring And Licensing
-
-- If vendoring third-party code, keep upstream license files intact.
-- Add a short XENO-specific note explaining what was changed and why.
-- Update `NOTICE` when vendored code or third-party licensing posture changes.
-- Do not introduce dependencies or assets with unclear commercial-use posture.
-- Keep `deny.toml` crate-scoped and reviewable. Avoid broad license allowlists when a targeted exception is sufficient.
-
-## Media And Competitor Bar
-
-- `xeno-lib` is being developed against an explicit "beat the incumbents" standard, especially versus FFmpeg-class workflows.
-- Maintain the parity tracker and benchmark gates as first-class artifacts, not side notes.
-- Capability claims must be backed by code paths, tests, and CI where feasible.
-
-## Repository Maintenance Rules
-
-- Do not revert unrelated user work.
-- Do not delete historical or internal local files from disk unless explicitly asked.
-- If a file should remain local-only, ignore it rather than deleting it.
-- Remove obsolete tracked repository artifacts when they no longer reflect the live system.
-- Keep the working tree clean after finishing.
-
-## When In Doubt
-
-- Choose the option that improves:
-  - public reviewability
-  - deterministic builds
-  - honest documentation
-  - branch and CI hygiene
-  - long-term maintainability
+- `cargo test --all-features --locked` must pass
+- `cargo fmt --check` must pass
+- `cargo clippy --all-features -- -D warnings` must pass
+- FFmpeg parity matrix must not regress
+- Competitive benchmarks must not regress
+- No `unsafe` without `// SAFETY:` justification
+- No `unwrap()` in library code
+- No `console.log` equivalent — use `tracing` or `log` crate
+- Every public function has doc comments
