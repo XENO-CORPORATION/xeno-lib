@@ -566,6 +566,12 @@ xeno-edit video-encode output.mp4 -f 30 frame*.png
 
 Full CLI reference (usage, aliases, and examples): `xeno-edit/CLI_COMMANDS.md`
 
+Additional project docs:
+
+- `docs/README.md`
+- `docs/REALITY.md`
+- `docs/FFMPEG_COMPARISON.md`
+
 ---
 
 ## License

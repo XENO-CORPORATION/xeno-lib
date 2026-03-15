@@ -62,8 +62,9 @@ Thumbs.db
 benchmarks/competitors/results/latest.json
 
 # Internal agent / local development notes
-COMPLETION_REPORT.md
-IMPLEMENTATION_STATUS.md
-OPERATION_VERIFICATION.md
-PHASE1_DESIGN.md
-PHASE2_VIDEO_DESIGN.md
+/.git-rewrite/
+/COMPLETION_REPORT.md
+/IMPLEMENTATION_STATUS.md
+/OPERATION_VERIFICATION.md
+/PHASE1_DESIGN.md
+/PHASE2_VIDEO_DESIGN.md
