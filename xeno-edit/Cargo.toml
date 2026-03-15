@@ -25,3 +25,5 @@ serde_json = "1.0"  # JSON parsing for agent API
 
 [patch.crates-io]
 flacenc = { path = "../vendor/flacenc" }
+pastey = { path = "../vendor/pastey" }
+rav1e = { path = "../vendor/rav1e" }
