@@ -1,9 +1,15 @@
 name: Dependency Audit
 
+run-name: Dependency Audit
+
 on:
   schedule:
     - cron: "0 6 * * 1"
   workflow_dispatch:
+
+concurrency:
+  group: dependency-audit
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -15,6 +21,7 @@ jobs:
   cargo-audit:
     name: Cargo Audit and Deny
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Check out repository
