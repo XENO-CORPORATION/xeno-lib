@@ -42,8 +42,9 @@ posting the following exact sentence in a PR comment:
 `I have read the CLA Document and I hereby sign the CLA`
 
 That acknowledgement applies to your initial and all future contributions to
-this repository. If the CLA Assistant workflow is enabled, it will record your
-agreement automatically.
+this repository. The required `cla` check validates that exact PR comment.
+If the check already failed before you commented, a maintainer reruns it after
+your acknowledgement is visible on the pull request.
 
 ---
 

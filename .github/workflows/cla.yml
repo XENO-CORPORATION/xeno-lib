@@ -3,33 +3,25 @@ name: CLA Assistant
 run-name: >-
   ${{ github.event_name == 'pull_request_target'
       && format('CLA / PR #{0}', github.event.pull_request.number)
-      || format('CLA / Issue #{0}', github.event.issue.number) }}
+      || format('CLA / {0}', github.run_number) }}
 
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened]
-  issue_comment:
-    types: [created]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
-  group: cla-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
+  group: cla-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 permissions:
-  actions: write
-  contents: write
-  issues: write
-  pull-requests: write
+  contents: read
+  issues: read
+  pull-requests: read
 
 jobs:
   cla:
     name: cla
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'pull_request_target' ||
-      (github.event_name == 'issue_comment' &&
-       github.event.issue.pull_request &&
-       contains(github.event.comment.body, 'I have read the CLA Document and I hereby sign the CLA'))
     timeout-minutes: 10
 
     steps:
@@ -44,7 +36,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CLA_ALLOWLIST: emiliancristea,emilian-bnkrsys,dependabot[bot],github-actions[bot]
           CLA_DOCUMENT_URL: https://github.com/XENO-CORPORATION/xeno-lib/blob/master/CLA.md
-          CLA_LEDGER_BRANCH: cla-signatures
-          CLA_LEDGER_PATH: signatures/cla.json
           CLA_SIGN_TEXT: I have read the CLA Document and I hereby sign the CLA
         run: python .github/scripts/cla_assistant.py

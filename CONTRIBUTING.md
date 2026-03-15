@@ -11,6 +11,7 @@ On your first pull request, add this exact sentence as a PR comment:
 `I have read the CLA Document and I hereby sign the CLA`
 
 That acknowledgement is required before a maintainer will merge your first contribution.
+If the `cla` check ran before your comment was posted, ask a maintainer to rerun it.
 
 **Why we require a CLA:** XENO Corporation intends to use xeno-lib in both open-source and commercial products. The CLA ensures the project can accept outside contributions while preserving clear IP rights for maintainers, users, and downstream commercial distribution.
 
