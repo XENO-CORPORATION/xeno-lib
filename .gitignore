@@ -51,6 +51,8 @@ lcov.info
 
 # Documentation build
 /doc/
+__pycache__/
+*.pyc
 
 # OS-specific
 Thumbs.db
