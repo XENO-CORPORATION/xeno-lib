@@ -57,7 +57,7 @@ pub mod container;
 #[cfg(any(feature = "video-encode", feature = "video-encode-h264"))]
 pub mod encode;
 
-#[cfg(feature = "video-decode")]
+#[cfg(any(feature = "video-decode", feature = "video-decode-hevc"))]
 pub mod decode;
 
 #[cfg(feature = "av-mux")]

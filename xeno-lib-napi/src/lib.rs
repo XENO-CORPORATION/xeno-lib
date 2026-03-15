@@ -17,5 +17,6 @@ mod image_processing;
 mod image_encoding;
 mod audio_processing;
 mod ai_models;
+mod hardware;
 mod helpers;
 mod validation;

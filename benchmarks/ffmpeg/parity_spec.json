@@ -212,24 +212,22 @@
       "category": "Containers",
       "capability_name": "MKV demuxing",
       "ffmpeg_reference": "Supported",
-      "xeno_reference": "Metadata-oriented demux",
+      "xeno_reference": "Indexed packet demux in xeno-edit video-info / transcode",
       "type": "capability_contains",
       "capability": "demux_formats",
       "value": "mkv",
-      "status_if_present": "partial",
-      "notes": "Packet/frame iteration is not fully implemented."
+      "notes": "Stream metadata, packet iteration, seek, SimpleBlock, BlockGroup, and common lacing modes are implemented."
     },
     {
       "id": "container_demux_webm",
       "category": "Containers",
       "capability_name": "WebM demuxing",
       "ffmpeg_reference": "Supported",
-      "xeno_reference": "Metadata-oriented demux",
+      "xeno_reference": "Indexed packet demux in xeno-edit video-info / transcode",
       "type": "capability_contains",
       "capability": "demux_formats",
       "value": "webm",
-      "status_if_present": "partial",
-      "notes": "Packet/frame iteration is not fully implemented."
+      "notes": "Shared Matroska demuxer covers packet iteration, seek, and common block layouts used by WebM."
     },
     {
       "id": "container_demux_avi",

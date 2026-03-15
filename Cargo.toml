@@ -83,7 +83,9 @@ video-encode-h264 = ["video", "dep:openh264", "mp4"]  # H.264 encoding via OpenH
 video-encode-full = ["video-encode", "video-encode-h264"]  # All encoders
 video-decode = ["video", "libloading"]
 video-decode-sw = ["video", "dep:dav1d", "dep:openh264"]  # Software AV1 + H.264 decoders
-video-full = ["video-encode-full", "video-decode", "video-decode-sw"]
+video-decode-hevc = ["video"]                              # HEVC/H.265 software decoder (stub — awaiting libde265 integration)
+hardware-detect = ["libloading"]                           # Hardware GPU/encoder detection (NVENC, QSV, AMF)
+video-full = ["video-encode-full", "video-decode", "video-decode-sw", "video-decode-hevc"]
 
 # Audio features (Phase 2)
 audio = ["symphonia"]
@@ -172,7 +174,7 @@ document = []                                      # Document processing
 vectorize = ["dep:vtracer"]                        # PNG/JPG/etc -> SVG vectorization
 
 # Full multimedia (everything)
-multimedia = ["video-full", "audio-full", "containers", "text-overlay", "subtitle"]
+multimedia = ["video-full", "audio-full", "containers", "text-overlay", "subtitle", "hardware-detect"]
 
 # AI features bundle (original)
 ai = ["background-removal", "upscale", "face-restore", "colorize", "inpaint", "face-detect", "depth"]

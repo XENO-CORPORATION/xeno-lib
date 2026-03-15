@@ -163,8 +163,12 @@ impl AviDemuxer {
             }
         });
 
-        let (video_packets, audio_packets) =
-            index_avi_packets(&mut reader, riff_end, video_header.as_ref(), audio_header.as_ref())?;
+        let (video_packets, audio_packets) = index_avi_packets(
+            &mut reader,
+            riff_end,
+            video_header.as_ref(),
+            audio_header.as_ref(),
+        )?;
 
         Ok(Self {
             reader,
@@ -231,11 +235,21 @@ impl Demuxer for AviDemuxer {
 
 fn parse_avi_headers<R: Read + Seek>(
     reader: &mut R,
-) -> Result<(u64, MainAviHeader, Option<AviVideoHeader>, Option<AviAudioHeader>), VideoError> {
+) -> Result<
+    (
+        u64,
+        MainAviHeader,
+        Option<AviVideoHeader>,
+        Option<AviAudioHeader>,
+    ),
+    VideoError,
+> {
     let mut riff_header = [0u8; 12];
-    reader.read_exact(&mut riff_header).map_err(|e| VideoError::Io {
-        message: format!("Failed to read AVI RIFF header: {}", e),
-    })?;
+    reader
+        .read_exact(&mut riff_header)
+        .map_err(|e| VideoError::Io {
+            message: format!("Failed to read AVI RIFF header: {}", e),
+        })?;
 
     if &riff_header[0..4] != b"RIFF" || &riff_header[8..12] != b"AVI " {
         return Err(VideoError::Container {
@@ -249,9 +263,11 @@ fn parse_avi_headers<R: Read + Seek>(
         riff_header[6],
         riff_header[7],
     ]);
-    let riff_end = 8u64.checked_add(riff_size as u64).ok_or_else(|| VideoError::Container {
-        message: "Invalid AVI file: RIFF size overflow".to_string(),
-    })?;
+    let riff_end = 8u64
+        .checked_add(riff_size as u64)
+        .ok_or_else(|| VideoError::Container {
+            message: "Invalid AVI file: RIFF size overflow".to_string(),
+        })?;
 
     let mut main = MainAviHeader::default();
     let mut video = None;
@@ -312,7 +328,8 @@ fn parse_hdrl_list<R: Read + Seek>(
                     let mut list_type = [0u8; 4];
                     reader.read_exact(&mut list_type).map_err(io_err)?;
                     if list_type == *b"strl" {
-                        let (stream_video, stream_audio) = parse_stream_list(reader, chunk_end, stream_index)?;
+                        let (stream_video, stream_audio) =
+                            parse_stream_list(reader, chunk_end, stream_index)?;
                         if video.is_none() {
                             *video = stream_video;
                         }
@@ -549,7 +566,9 @@ fn index_movi_packets<R: Read + Seek>(
         if let Some((stream_index, kind)) = parse_media_chunk_id(chunk_id) {
             match kind {
                 AviChunkKind::Video => {
-                    if let Some(video_header) = video.filter(|header| header.stream_index == stream_index) {
+                    if let Some(video_header) =
+                        video.filter(|header| header.stream_index == stream_index)
+                    {
                         let duration = i64::from(video_header.scale.max(1));
                         let timestamp_secs = if video_header.rate > 0 {
                             *video_pts as f64 / video_header.rate as f64
@@ -569,10 +588,13 @@ fn index_movi_packets<R: Read + Seek>(
                     }
                 }
                 AviChunkKind::Audio => {
-                    if let Some(audio_header) = audio.filter(|header| header.stream_index == stream_index) {
+                    if let Some(audio_header) =
+                        audio.filter(|header| header.stream_index == stream_index)
+                    {
                         let duration = audio_packet_duration(chunk_size, audio_header);
                         let timestamp_secs = if audio_header.rate > 0 {
-                            *audio_pts as f64 * audio_header.scale.max(1) as f64 / audio_header.rate as f64
+                            *audio_pts as f64 * audio_header.scale.max(1) as f64
+                                / audio_header.rate as f64
                         } else {
                             0.0
                         };
@@ -628,7 +650,10 @@ fn audio_packet_duration(chunk_size: u32, header: &AviAudioHeader) -> i64 {
     }
 }
 
-fn read_indexed_packet<R: Read + Seek>(reader: &mut R, index: &AviPacketIndex) -> Result<Option<Packet>, VideoError> {
+fn read_indexed_packet<R: Read + Seek>(
+    reader: &mut R,
+    index: &AviPacketIndex,
+) -> Result<Option<Packet>, VideoError> {
     reader.seek(SeekFrom::Start(index.offset)).map_err(io_err)?;
     let mut data = vec![0u8; index.size as usize];
     reader.read_exact(&mut data).map_err(io_err)?;
@@ -713,7 +738,11 @@ fn checked_chunk_end(chunk_start: u64, chunk_size: u32) -> Result<u64, VideoErro
         })
 }
 
-fn seek_chunk_end<R: Seek>(reader: &mut R, chunk_end: u64, chunk_size: u32) -> Result<(), VideoError> {
+fn seek_chunk_end<R: Seek>(
+    reader: &mut R,
+    chunk_end: u64,
+    chunk_size: u32,
+) -> Result<(), VideoError> {
     let aligned = chunk_end + (chunk_size as u64 & 1);
     reader.seek(SeekFrom::Start(aligned)).map_err(io_err)?;
     Ok(())
@@ -856,30 +885,17 @@ mod tests {
 
         let video_strl = list_chunk(
             b"strl",
-            [
-                chunk(b"strh", &video_strh),
-                chunk(b"strf", &video_strf),
-            ]
-            .concat(),
+            [chunk(b"strh", &video_strh), chunk(b"strf", &video_strf)].concat(),
         );
 
         let audio_strl = list_chunk(
             b"strl",
-            [
-                chunk(b"strh", &audio_strh),
-                chunk(b"strf", &audio_strf),
-            ]
-            .concat(),
+            [chunk(b"strh", &audio_strh), chunk(b"strf", &audio_strf)].concat(),
         );
 
         let hdrl = list_chunk(
             b"hdrl",
-            [
-                chunk(b"avih", &avih),
-                video_strl,
-                audio_strl,
-            ]
-            .concat(),
+            [chunk(b"avih", &avih), video_strl, audio_strl].concat(),
         );
 
         let movi = list_chunk(

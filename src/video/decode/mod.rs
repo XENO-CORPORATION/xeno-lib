@@ -43,6 +43,9 @@ mod dav1d_decoder;
 #[cfg(feature = "video-decode-sw")]
 mod openh264_decoder;
 
+#[cfg(feature = "video-decode-hevc")]
+pub mod hevc;
+
 #[cfg(feature = "video-decode")]
 pub use nvdec::*;
 
@@ -50,6 +53,9 @@ pub use nvdec::*;
 pub use dav1d_decoder::Dav1dDecoder;
 #[cfg(feature = "video-decode-sw")]
 pub use openh264_decoder::OpenH264Decoder;
+
+#[cfg(feature = "video-decode-hevc")]
+pub use hevc::HevcDecoder;
 
 use crate::video::VideoError;
 
@@ -319,6 +325,8 @@ pub enum DecoderBackend {
     Dav1d,
     /// OpenH264 software decoder (H.264 only)
     OpenH264,
+    /// HEVC/H.265 software decoder (stub — not yet available)
+    Hevc,
     /// No decoder available
     None,
 }
@@ -346,6 +354,12 @@ pub fn best_decoder_for(codec: DecodeCodec) -> DecoderBackend {
         return DecoderBackend::OpenH264;
     }
 
+    // HEVC software decoder (stub — not yet available)
+    #[cfg(feature = "video-decode-hevc")]
+    if codec == DecodeCodec::H265 && HevcDecoder::is_available() {
+        return DecoderBackend::Hevc;
+    }
+
     DecoderBackend::None
 }
 
@@ -359,6 +373,12 @@ pub fn best_decoder_for(codec: DecodeCodec) -> DecoderBackend {
 
     if codec == DecodeCodec::H264 && OpenH264Decoder::is_available() {
         return DecoderBackend::OpenH264;
+    }
+
+    // HEVC software decoder (stub — not yet available)
+    #[cfg(feature = "video-decode-hevc")]
+    if codec == DecodeCodec::H265 && HevcDecoder::is_available() {
+        return DecoderBackend::Hevc;
     }
 
     DecoderBackend::None
@@ -419,6 +439,9 @@ pub fn decode_ivf<P: AsRef<std::path::Path>>(path: P) -> Result<Vec<DecodedFrame
         #[cfg(not(feature = "video-decode-sw"))]
         DecoderBackend::OpenH264 => Err(VideoError::Decoding {
             message: "OpenH264 software decoder not available on this platform/build.".to_string(),
+        }),
+        DecoderBackend::Hevc => Err(VideoError::Decoding {
+            message: "HEVC software decoder is not yet available. Use NVDEC for H.265 decoding.".to_string(),
         }),
         DecoderBackend::None => Err(VideoError::Decoding {
             message: format!(

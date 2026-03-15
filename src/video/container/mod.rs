@@ -7,8 +7,8 @@
 //! # Supported Containers
 //!
 //! - **MP4** (.mp4, .m4v, .mov) - via the `mp4` crate
-//! - **MKV/WebM** (.mkv, .webm) - via the `matroska` crate
-//! - **AVI** (.avi) - metadata-oriented demuxing (built-in)
+//! - **MKV/WebM** (.mkv, .webm) - metadata + indexed packet demuxing
+//! - **AVI** (.avi) - indexed packet demuxing (built-in)
 //! - **IVF** (.ivf) - raw VP8/VP9/AV1 bitstream container (built-in)
 //!
 //! # Example
@@ -37,15 +37,15 @@ mod mkv_demux;
 mod avi_demux;
 mod ivf_demux;
 
-use crate::video::{ContainerFormat, VideoCodec, AudioCodec, VideoError};
+use crate::video::{AudioCodec, ContainerFormat, VideoCodec, VideoError};
 use std::path::Path;
 
 /// Supported container file extensions.
 pub const SUPPORTED_EXTENSIONS: &[&str] = &[
-    "mp4", "m4v", "mov",  // MP4 family
-    "mkv", "webm",        // Matroska family
-    "ivf",                // IVF (raw bitstream)
-    "avi",                // AVI (limited support)
+    "mp4", "m4v", "mov", // MP4 family
+    "mkv", "webm", // Matroska family
+    "ivf",  // IVF (raw bitstream)
+    "avi",  // AVI (limited support)
 ];
 
 /// Check if a file extension indicates a supported video format.
@@ -58,7 +58,12 @@ pub fn is_supported_extension(path: &Path) -> bool {
 
 /// Detect container format from file extension.
 pub fn detect_format_from_extension(path: &Path) -> ContainerFormat {
-    match path.extension().and_then(|e| e.to_str()).map(|s| s.to_lowercase()).as_deref() {
+    match path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|s| s.to_lowercase())
+        .as_deref()
+    {
         Some("mp4") | Some("m4v") => ContainerFormat::Mp4,
         Some("mkv") => ContainerFormat::Mkv,
         Some("webm") => ContainerFormat::WebM,
@@ -194,10 +199,9 @@ pub fn detect_container_type(path: &Path) -> Option<ContainerType> {
 pub fn open_container<P: AsRef<Path>>(path: P) -> Result<Box<dyn Demuxer>, VideoError> {
     let path = path.as_ref();
 
-    let container_type = detect_container_type(path)
-        .ok_or_else(|| VideoError::Container {
-            message: format!("Unsupported container format: {:?}", path.extension()),
-        })?;
+    let container_type = detect_container_type(path).ok_or_else(|| VideoError::Container {
+        message: format!("Unsupported container format: {:?}", path.extension()),
+    })?;
 
     match container_type {
         ContainerType::Ivf => {
@@ -215,17 +219,14 @@ pub fn open_container<P: AsRef<Path>>(path: P) -> Result<Box<dyn Demuxer>, Video
             Ok(Box::new(demuxer))
         }
         #[cfg(not(feature = "mp4"))]
-        ContainerType::Mp4 => {
-            Err(VideoError::Container {
-                message: "MP4 support not enabled. Enable 'containers' or 'mp4' feature.".to_string(),
-            })
-        }
+        ContainerType::Mp4 => Err(VideoError::Container {
+            message: "MP4 support not enabled. Enable 'containers' or 'mp4' feature.".to_string(),
+        }),
         #[cfg(not(feature = "matroska"))]
-        ContainerType::Mkv | ContainerType::WebM => {
-            Err(VideoError::Container {
-                message: "MKV/WebM support not enabled. Enable 'containers' or 'matroska' feature.".to_string(),
-            })
-        }
+        ContainerType::Mkv | ContainerType::WebM => Err(VideoError::Container {
+            message: "MKV/WebM support not enabled. Enable 'containers' or 'matroska' feature."
+                .to_string(),
+        }),
         ContainerType::Avi => {
             let demuxer = avi_demux::AviDemuxer::open(path)?;
             Ok(Box::new(demuxer))

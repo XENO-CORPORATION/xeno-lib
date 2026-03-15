@@ -219,15 +219,13 @@ impl Mp4Demuxer {
                         };
 
                         // Get audio configuration
-                        let sample_rate = track.sample_freq_index()
+                        let sample_rate = track
+                            .sample_freq_index()
                             .ok()
                             .map(|idx| idx.freq())
                             .unwrap_or(timescale);
 
-                        let channels = track.channel_config()
-                            .ok()
-                            .map(|c| c as u16)
-                            .unwrap_or(2);
+                        let channels = track.channel_config().ok().map(|c| c as u16).unwrap_or(2);
 
                         audio_info = Some(AudioStreamInfo {
                             codec,
@@ -268,7 +266,9 @@ impl Mp4Demuxer {
             return Ok(None);
         }
 
-        let sample = self.reader.read_sample(track_id, self.video_sample_idx)
+        let sample = self
+            .reader
+            .read_sample(track_id, self.video_sample_idx)
             .map_err(|e| VideoError::Container {
                 message: format!("Failed to read video sample: {}", e),
             })?;
@@ -320,7 +320,9 @@ impl Mp4Demuxer {
             return Ok(None);
         }
 
-        let sample = self.reader.read_sample(track_id, self.audio_sample_idx)
+        let sample = self
+            .reader
+            .read_sample(track_id, self.audio_sample_idx)
             .map_err(|e| VideoError::Container {
                 message: format!("Failed to read audio sample: {}", e),
             })?;
@@ -372,8 +374,8 @@ mod tests {
         assert_eq!(
             converted,
             vec![
-                0, 0, 0, 1, 0x67, 0x64, 0x00, 0x1f, 0, 0, 0, 1, 0x68, 0xeb, 0xef, 0x20,
-                0, 0, 0, 1, 0x65, 0x88
+                0, 0, 0, 1, 0x67, 0x64, 0x00, 0x1f, 0, 0, 0, 1, 0x68, 0xeb, 0xef, 0x20, 0, 0, 0, 1,
+                0x65, 0x88
             ]
         );
     }

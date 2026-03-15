@@ -87,8 +87,11 @@ pub mod transcribe;
 #[cfg(feature = "audio-separate")]
 pub mod audio_separate;
 
-#[cfg(any(feature = "video", feature = "video-encode"))]
+#[cfg(any(feature = "video", feature = "video-encode", feature = "video-decode-hevc"))]
 pub mod video;
+
+#[cfg(feature = "hardware-detect")]
+pub mod hardware;
 
 #[cfg(feature = "audio")]
 pub mod audio;
@@ -155,6 +158,12 @@ pub use crate::video::decode::{
 
 #[cfg(all(feature = "video-decode", feature = "video-decode-sw"))]
 pub use crate::video::decode::OpenH264Decoder;
+
+#[cfg(feature = "hardware-detect")]
+pub use crate::hardware::{
+    detect_hardware, get_supported_codecs, AmdInfo, CodecCapability, CodecSupport,
+    HardwareCapabilities, IntelInfo, NvidiaInfo,
+};
 
 #[cfg(feature = "audio")]
 pub use crate::audio::{

@@ -90,9 +90,11 @@ impl IvfDemuxer {
 
         // Read and parse header
         let mut header_data = [0u8; 32];
-        reader.read_exact(&mut header_data).map_err(|e| VideoError::Io {
-            message: format!("Failed to read IVF header: {}", e),
-        })?;
+        reader
+            .read_exact(&mut header_data)
+            .map_err(|e| VideoError::Io {
+                message: format!("Failed to read IVF header: {}", e),
+            })?;
 
         let header = IvfHeader::parse(&header_data)?;
 
@@ -165,9 +167,11 @@ impl IvfDemuxer {
 
         // Read frame data
         let mut data = vec![0u8; frame_size];
-        self.reader.read_exact(&mut data).map_err(|e| VideoError::Io {
-            message: format!("Failed to read frame data: {}", e),
-        })?;
+        self.reader
+            .read_exact(&mut data)
+            .map_err(|e| VideoError::Io {
+                message: format!("Failed to read frame data: {}", e),
+            })?;
 
         // Check if this is a keyframe (first byte analysis for AV1/VP9)
         let is_keyframe = self.detect_keyframe(&data);
@@ -178,7 +182,7 @@ impl IvfDemuxer {
             data,
             pts: timestamp as i64,
             dts: timestamp as i64, // IVF doesn't have B-frames reordering
-            duration: 1, // One frame duration in timebase units
+            duration: 1,           // One frame duration in timebase units
             is_keyframe,
             stream_index: 0,
         }))

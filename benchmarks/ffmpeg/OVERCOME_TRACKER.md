@@ -14,10 +14,10 @@ This is the working roadmap for making `xeno-lib` and `xeno-edit` beat FFmpeg in
 Current local baseline from `benchmarks/ffmpeg/results/latest.json`:
 
 - Objective rows tracked: `46`
-- `HAVE`: `33`
-- `PARTIAL`: `5`
+- `HAVE`: `35`
+- `PARTIAL`: `3`
 - `MISSING`: `8`
-- Weighted parity score: `77.17%`
+- Weighted parity score: `79.35%`
 
 Interpretation:
 
@@ -61,10 +61,10 @@ These exist today but are incomplete or too backend-dependent.
 - [ ] H.265 decode without relying only on NVDEC
 - [ ] VP8 decode without relying only on NVDEC
 - [ ] VP9 decode without relying only on NVDEC
-- [ ] MKV demux frame/audio iteration
-- [ ] MKV demux seeking
-- [ ] WebM demux frame/audio iteration
-- [ ] WebM demux seeking
+- [x] MKV demux frame/audio iteration
+- [x] MKV demux seeking
+- [x] WebM demux frame/audio iteration
+- [x] WebM demux seeking
 
 ## P1: Big Systems Still Missing From The Parity Matrix
 

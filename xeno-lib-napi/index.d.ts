@@ -292,3 +292,85 @@ export function interpolateFrames(
   height: number,
   factor: number,
 ): Promise<Buffer>;
+
+// ---------------------------------------------------------------------------
+// Hardware Detection (Phase 2 — hardware encoder/decoder capability)
+// ---------------------------------------------------------------------------
+
+/** NVIDIA GPU information. */
+export interface NvidiaInfoJs {
+  /** GPU device name (e.g., "NVIDIA GeForce RTX 4090"). */
+  gpuName: string;
+  /** Driver version string (e.g., "560.35"). */
+  driverVersion: string;
+  /** Whether NVENC (hardware video encoding) is available. */
+  nvencAvailable: boolean;
+  /** Whether NVDEC (hardware video decoding) is available. */
+  nvdecAvailable: boolean;
+  /** Video RAM in megabytes. */
+  vramMb: number;
+}
+
+/** Intel GPU information. */
+export interface IntelInfoJs {
+  /** GPU device name. */
+  gpuName: string;
+  /** Whether Intel Quick Sync Video is available. */
+  qsvAvailable: boolean;
+}
+
+/** AMD GPU information. */
+export interface AmdInfoJs {
+  /** GPU device name. */
+  gpuName: string;
+  /** Whether AMD Advanced Media Framework is available. */
+  amfAvailable: boolean;
+}
+
+/** Hardware acceleration capabilities detected on the current system. */
+export interface HardwareCapabilitiesJs {
+  /** NVIDIA GPU info, or null/undefined if no NVIDIA GPU is detected. */
+  nvidia?: NvidiaInfoJs;
+  /** Intel GPU info, or null/undefined if no Intel GPU is detected. */
+  intel?: IntelInfoJs;
+  /** AMD GPU info, or null/undefined if no AMD GPU is detected. */
+  amd?: AmdInfoJs;
+}
+
+/** Codec capability for a single codec. */
+export interface CodecCapabilityJs {
+  /** Whether software encoding is available. */
+  encode: boolean;
+  /** Whether software decoding is available. */
+  decode: boolean;
+  /** Whether hardware-accelerated encoding is available. */
+  hardwareEncode: boolean;
+  /** Whether hardware-accelerated decoding is available. */
+  hardwareDecode: boolean;
+}
+
+/** Codec support for all known codecs. */
+export interface CodecSupportJs {
+  /** H.264/AVC support. */
+  h264: CodecCapabilityJs;
+  /** H.265/HEVC support. */
+  h265: CodecCapabilityJs;
+  /** AV1 support. */
+  av1: CodecCapabilityJs;
+  /** VP9 support. */
+  vp9: CodecCapabilityJs;
+}
+
+/**
+ * Detect available hardware acceleration on the current system.
+ * Dynamically loads vendor-specific libraries to detect GPUs.
+ * Never throws — missing hardware is reported as undefined fields.
+ * @returns Hardware capabilities with NVIDIA/Intel/AMD info
+ */
+export function detectHardware(): HardwareCapabilitiesJs;
+
+/**
+ * Get supported codecs based on compiled features and detected hardware.
+ * @returns Codec support information for H.264, H.265, AV1, VP9
+ */
+export function getSupportedCodecs(): CodecSupportJs;
