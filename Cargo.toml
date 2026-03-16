@@ -14,7 +14,7 @@ categories = ["graphics", "multimedia::images", "multimedia::video", "multimedia
 image = { version = "0.25", default-features = true }
 nom-exif = "2.5"
 rayon = "1.10"
-thiserror = "1.0"
+thiserror = "2.0"
 fast_image_resize = { version = "5.3", optional = true }
 
 # Background removal dependencies
