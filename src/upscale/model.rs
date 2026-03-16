@@ -15,6 +15,17 @@ use super::config::UpscaleConfig;
 ///
 /// This struct wraps an `ort::Session` and provides a convenient interface
 /// for running Real-ESRGAN inference.
+///
+/// # Thread Safety
+///
+/// `UpscalerSession` requires `&mut self` for `run()`, enforcing single-threaded
+/// access via Rust's borrow checker. For multi-threaded workloads, create one
+/// session per thread or wrap in a `Mutex`.
+///
+/// # Lifecycle
+///
+/// Sessions hold GPU or CPU memory proportional to the model size. Drop the
+/// session when inference is complete to release resources.
 pub struct UpscalerSession {
     session: Session,
     config: UpscaleConfig,

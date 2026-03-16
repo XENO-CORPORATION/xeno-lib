@@ -63,6 +63,21 @@ fn dirs_next() -> Option<PathBuf> {
 ///
 /// This struct wraps an `ort::Session` and provides a convenient interface
 /// for running background removal inference.
+///
+/// # Thread Safety
+///
+/// `ModelSession` requires `&mut self` for `run()`, enforcing single-threaded
+/// access via Rust's borrow checker. While the underlying `ort::Session` is
+/// thread-safe for concurrent inference, this wrapper uses exclusive access
+/// to simplify lifetime management. For multi-threaded workloads, create one
+/// `ModelSession` per thread or wrap in a `Mutex`.
+///
+/// # Lifecycle
+///
+/// Sessions hold GPU or CPU memory proportional to the model size. Drop the
+/// session when inference is complete to release resources. There is no
+/// built-in session caching; callers should reuse sessions across multiple
+/// images and drop them explicitly when no longer needed.
 pub struct ModelSession {
     session: Session,
     input_size: (u32, u32),
