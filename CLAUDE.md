@@ -228,3 +228,40 @@ The repository enforces these checks:
 - `cla` — Contributor License Agreement verification
 
 Do not merge changes that break these signals.
+
+## Release & Documentation Protocol
+
+### When Releasing a New Version
+1. **Version bump**: Update `version` in package.json (or Cargo.toml for Rust)
+2. **Git tag**: `git tag vX.Y.Z && git push --tags`
+3. **GitHub Release**: Create release with changelog via `gh release create`
+4. **Build installers**: Run `npm run package` (for Electron apps) or `cargo build --release` (for Rust)
+5. **Upload artifacts**: Push to Cloudflare R2 (`xeno-hub-releases` bucket) and GitHub Releases
+6. **Update product pages**: Update release notes on xenostudio.ai
+
+### Product Pages on xenostudio.ai
+Every product has dedicated pages at `xenostudio.ai/products/{product-name}/`:
+- `/products/{name}/` — Product overview (features, hero, download CTA)
+- `/products/{name}/release-notes/` — Version history with changelogs
+- `/products/{name}/download/` — Download page with OS detection
+- `/products/{name}/docs/` — Documentation (getting started, features, API)
+
+When a new version is released, the release notes page MUST be updated with:
+- Version number and date
+- New features (bullet list)
+- Bug fixes (bullet list)
+- Known issues
+- Breaking changes (if any)
+
+### Documentation Standards
+- Every new feature MUST be documented before release
+- Documentation lives on xenostudio.ai/products/{name}/docs/
+- Use clear, concise language. Include screenshots where helpful.
+- API documentation must include examples
+- Keyboard shortcuts must be listed
+
+### Versioning
+- Follow semantic versioning: MAJOR.MINOR.PATCH
+- MAJOR: Breaking changes
+- MINOR: New features (backward compatible)
+- PATCH: Bug fixes
