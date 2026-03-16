@@ -52,3 +52,5 @@ rav1e = { path = "../vendor/rav1e" }
 default = []
 # GPU-accelerated AI inference
 cuda = []
+# LaTeX compilation via embedded Tectonic engine
+latex = ["xeno-lib/latex"]

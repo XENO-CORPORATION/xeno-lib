@@ -21,3 +21,6 @@ mod hardware;
 mod helpers;
 mod validation;
 mod video;
+
+#[cfg(feature = "latex")]
+mod latex;

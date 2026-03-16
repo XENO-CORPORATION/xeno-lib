@@ -435,3 +435,20 @@ export function detectHardware(): HardwareCapabilitiesJs;
  * @returns Codec support information for H.264, H.265, AV1, VP9
  */
 export function getSupportedCodecs(): CodecSupportJs;
+
+// ---------------------------------------------------------------------------
+// LaTeX Compilation (Tectonic engine — no external TeX distribution needed)
+// ---------------------------------------------------------------------------
+
+/**
+ * Compile LaTeX source code to PDF using the embedded Tectonic engine.
+ * No external TeX distribution (MiKTeX, TeX Live, etc.) is required.
+ *
+ * Note: The first invocation may be slower as Tectonic downloads
+ * required LaTeX packages (~200MB cached locally).
+ *
+ * @param texSource - LaTeX source code string
+ * @returns The compiled PDF as a Buffer
+ * @throws If the LaTeX source has errors or compilation fails
+ */
+export function compileLatex(texSource: string): Promise<Buffer>;

@@ -255,6 +255,9 @@ pub mod document;
 #[cfg(feature = "vectorize")]
 pub mod vectorize;
 
+#[cfg(feature = "latex")]
+pub mod latex;
+
 /// Modern image format support (AVIF, HEIF, enhanced WebP).
 #[cfg(any(feature = "format-avif", feature = "format-heif"))]
 pub mod formats;

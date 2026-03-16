@@ -65,6 +65,9 @@ ab_glyph = { version = "0.2", optional = true }   # Font loading and glyph raste
 # Raster -> Vector (SVG)
 vtracer = { version = "0.6.5", path = "vendor/vtracer", optional = true }  # High-quality image vectorization to SVG
 
+# LaTeX compilation (embedded Tectonic engine — no external TeX distribution needed)
+tectonic = { path = "../tectonic", optional = true }
+
 [patch.crates-io]
 flacenc = { path = "vendor/flacenc" }
 pastey = { path = "vendor/pastey" }
@@ -176,6 +179,9 @@ document = []                                      # Document processing
 # Raster-to-vector SVG conversion
 vectorize = ["dep:vtracer"]                        # PNG/JPG/etc -> SVG vectorization
 
+# LaTeX compilation (embedded Tectonic engine)
+latex = ["tectonic"]
+
 # Modern image format support
 format-avif = []                                   # AVIF encode/decode (via image crate's built-in AVIF support)
 format-heif = []                                   # HEIF/HEIC support (stub — pending libheif-rs integration)
@@ -201,7 +207,7 @@ ai-full-cuda = ["ai-cuda", "ai-video-cuda", "ai-vision-cuda"]
 pro-utils = ["qrcode", "quality", "document", "vectorize"]
 
 # Everything bundle
-full = ["multimedia", "ai-full", "pro-utils"]
+full = ["multimedia", "ai-full", "pro-utils", "latex"]
 full-cuda = ["multimedia", "ai-full-cuda", "pro-utils"]
 
 [dev-dependencies]
