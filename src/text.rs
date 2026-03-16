@@ -297,8 +297,8 @@ impl<'a> TextOverlay<'a> {
         if let Some(bg_color) = config.background {
             let bg_x = (draw_x - config.padding as i32).max(0) as u32;
             let bg_y = (draw_y - config.padding as i32).max(0) as u32;
-            let bg_w = (dims.width + config.padding * 2).min(image.width() - bg_x);
-            let bg_h = (dims.height + config.padding * 2).min(image.height() - bg_y);
+            let bg_w = (dims.width + config.padding * 2).min(image.width().saturating_sub(bg_x));
+            let bg_h = (dims.height + config.padding * 2).min(image.height().saturating_sub(bg_y));
 
             for y in bg_y..bg_y + bg_h {
                 for x in bg_x..bg_x + bg_w {
@@ -440,10 +440,10 @@ fn blend_pixel(image: &mut RgbaImage, x: u32, y: u32, src: Rgba<u8>) {
         let out_b = (src[2] as f32 * src_a + dst[2] as f32 * dst_a * (1.0 - src_a)) / out_a;
 
         image.put_pixel(x, y, Rgba([
-            out_r as u8,
-            out_g as u8,
-            out_b as u8,
-            (out_a * 255.0) as u8,
+            out_r.round().clamp(0.0, 255.0) as u8,
+            out_g.round().clamp(0.0, 255.0) as u8,
+            out_b.round().clamp(0.0, 255.0) as u8,
+            (out_a * 255.0).round().clamp(0.0, 255.0) as u8,
         ]));
     }
 }

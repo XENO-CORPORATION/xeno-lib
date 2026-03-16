@@ -115,10 +115,10 @@ impl DecodedAudio {
         bytes.extend_from_slice(&1u16.to_le_bytes()); // PCM format
         bytes.extend_from_slice(&(self.channels as u16).to_le_bytes());
         bytes.extend_from_slice(&self.sample_rate.to_le_bytes());
-        let byte_rate = self.sample_rate * self.channels * 2;
+        let byte_rate = self.sample_rate.saturating_mul(self.channels).saturating_mul(2);
         bytes.extend_from_slice(&byte_rate.to_le_bytes());
-        let block_align = self.channels * 2;
-        bytes.extend_from_slice(&(block_align as u16).to_le_bytes());
+        let block_align = (self.channels * 2) as u16;
+        bytes.extend_from_slice(&block_align.to_le_bytes());
         bytes.extend_from_slice(&16u16.to_le_bytes()); // bits per sample
 
         // data chunk

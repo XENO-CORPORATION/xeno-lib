@@ -153,3 +153,28 @@ fn all_filters_produce_valid_pixel_range() {
     check(&tint(&image, 50.0).unwrap(), "tint");
     check(&vibrance(&image, 50.0).unwrap(), "vibrance");
 }
+
+#[test]
+fn chromakey_zero_softness_does_not_divide_by_zero() {
+    let image = rgba_test_image();
+    let result = chromakey(&image, Rgba([0, 177, 64, 255]), 0.5, 0.0);
+    assert!(result.is_ok());
+    let output = result.unwrap().to_rgba8();
+    for pixel in output.pixels() {
+        assert!(pixel[0] <= 255);
+    }
+}
+
+#[test]
+fn vignette_full_radius_does_not_divide_by_zero() {
+    // radius=1.0 means vignette_radius == max_dist, causing zero denominator
+    let image = gradient_image();
+    let result = vignette(&image, 1.0, 1.0);
+    assert!(result.is_ok());
+    let output = result.unwrap().to_rgba8();
+    for pixel in output.pixels() {
+        for c in 0..3 {
+            assert!(pixel[c] <= 255);
+        }
+    }
+}

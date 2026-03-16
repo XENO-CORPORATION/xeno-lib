@@ -48,6 +48,10 @@ pub fn fade_in(samples: &[f32], sample_rate: u32, duration_secs: f32, curve: Fad
     let fade_samples = (sample_rate as f32 * duration_secs) as usize;
     let fade_samples = fade_samples.min(samples.len());
 
+    if fade_samples == 0 {
+        return samples.to_vec();
+    }
+
     let mut result = samples.to_vec();
 
     for (i, sample) in result.iter_mut().take(fade_samples).enumerate() {
@@ -69,6 +73,10 @@ pub fn fade_in(samples: &[f32], sample_rate: u32, duration_secs: f32, curve: Fad
 pub fn fade_out(samples: &[f32], sample_rate: u32, duration_secs: f32, curve: FadeCurve) -> Vec<f32> {
     let fade_samples = (sample_rate as f32 * duration_secs) as usize;
     let fade_samples = fade_samples.min(samples.len());
+
+    if fade_samples == 0 {
+        return samples.to_vec();
+    }
 
     let mut result = samples.to_vec();
     let start_idx = result.len().saturating_sub(fade_samples);
@@ -152,8 +160,8 @@ pub fn compress(
     sample_rate: u32,
 ) -> Vec<f32> {
     let threshold = db_to_linear(threshold_db);
-    let attack_coeff = (-1000.0 / (attack_ms * sample_rate as f32)).exp();
-    let release_coeff = (-1000.0 / (release_ms * sample_rate as f32)).exp();
+    let attack_coeff = (-1000.0 / (attack_ms.max(0.01) * sample_rate as f32)).exp();
+    let release_coeff = (-1000.0 / (release_ms.max(0.01) * sample_rate as f32)).exp();
 
     let mut result = Vec::with_capacity(samples.len());
     let mut envelope = 0.0f32;
@@ -337,6 +345,9 @@ pub fn detect_silence(
 
 /// Apply a DC offset removal (high-pass filter at very low frequency).
 pub fn remove_dc_offset(samples: &[f32]) -> Vec<f32> {
+    if samples.is_empty() {
+        return Vec::new();
+    }
     let mean: f32 = samples.iter().sum::<f32>() / samples.len() as f32;
     samples.iter().map(|&s| s - mean).collect()
 }
@@ -468,6 +479,37 @@ mod tests {
 
         let back_to_mono = stereo_to_mono(&stereo);
         assert_eq!(back_to_mono, mono);
+    }
+
+    #[test]
+    fn test_remove_dc_offset_empty() {
+        let result = remove_dc_offset(&[]);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_compress_zero_attack_release() {
+        let samples = vec![0.5, -0.5, 0.25, -0.25];
+        let result = compress(&samples, -10.0, 4.0, 0.0, 0.0, 44100);
+        assert_eq!(result.len(), samples.len());
+        assert!(result.iter().all(|s| s.is_finite()));
+    }
+
+    #[test]
+    fn test_fade_in_zero_duration() {
+        let samples = vec![1.0; 100];
+        let result = fade_in(&samples, 44100, 0.0, FadeCurve::Linear);
+        assert_eq!(result.len(), 100);
+        // With zero duration, no fade should be applied
+        assert!((result[0] - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_fade_out_zero_duration() {
+        let samples = vec![1.0; 100];
+        let result = fade_out(&samples, 44100, 0.0, FadeCurve::Linear);
+        assert_eq!(result.len(), 100);
+        assert!((result[99] - 1.0).abs() < 0.01);
     }
 
     #[test]

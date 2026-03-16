@@ -222,7 +222,7 @@ pub fn render_spectrum(
     let bins = bin_spectrum(&magnitudes, config.bins, config.log_scale);
 
     // Render bars
-    let bar_width = config.width / config.bins as u32;
+    let bar_width = (config.width / config.bins.max(1) as u32).max(1);
     let max_mag = bins.iter().cloned().fold(0.0f32, f32::max).max(0.001);
 
     for (i, &mag) in bins.iter().enumerate() {
@@ -258,7 +258,7 @@ pub fn render_spectrogram(
         return DynamicImage::ImageRgba8(img);
     }
 
-    let hop_size = samples.len() / width as usize;
+    let hop_size = (samples.len() / width as usize).max(1);
     let fft_size = 1024.min(samples.len()).next_power_of_two();
     let num_bins = height as usize;
 
@@ -286,6 +286,9 @@ pub fn render_spectrogram(
     // Render
     for (x, spectrum) in all_spectra.iter().enumerate() {
         for (bin_idx, &mag) in spectrum.iter().enumerate() {
+            if bin_idx as u32 >= height {
+                break;
+            }
             let y = height - 1 - bin_idx as u32;
             let normalized = (mag / max_mag).sqrt();
             if x < width as usize && y < height {
@@ -498,6 +501,38 @@ mod tests {
         let samples = vec![0.0, 0.5, 1.0, 0.5, 0.0, -0.5, -1.0, -0.5];
         let points = get_waveform_points(&samples, 4);
         assert_eq!(points.len(), 4);
+    }
+
+    #[test]
+    fn test_render_spectrogram_short_samples() {
+        // Samples shorter than width should not panic (division by zero in hop_size)
+        let samples = vec![0.5; 10];
+        let img = render_spectrogram(&samples, 44100, 400, 200, ColorMap::Viridis);
+        assert_eq!(img.width(), 400);
+        assert_eq!(img.height(), 200);
+    }
+
+    #[test]
+    fn test_render_spectrum_many_bins() {
+        // More bins than pixels should not panic (bar_width == 0)
+        let samples = generate_sine(440.0, 44100, 0.1);
+        let config = SpectrumConfig {
+            width: 10,
+            height: 100,
+            bins: 100, // More bins than pixels
+            ..SpectrumConfig::default()
+        };
+        let img = render_spectrum(&samples, 44100, &config);
+        assert_eq!(img.width(), 10);
+    }
+
+    #[test]
+    fn test_render_spectrogram_height_bins_overflow() {
+        // num_bins > height should not cause underflow in y coordinate
+        let samples = generate_sine(440.0, 44100, 0.5);
+        let img = render_spectrogram(&samples, 44100, 100, 5, ColorMap::Grayscale);
+        assert_eq!(img.width(), 100);
+        assert_eq!(img.height(), 5);
     }
 
     #[test]

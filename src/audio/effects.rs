@@ -176,8 +176,8 @@ pub fn reverb(samples: &[f32], sample_rate: u32, config: ReverbConfig) -> Vec<f3
             allpass_indices[j] = (idx + 1) % buf.len();
         }
 
-        // Mix
-        output[i] = samples[i] * (1.0 - config.wet_mix) + sum * config.wet_mix;
+        // Mix and clamp to prevent output exceeding [-1, 1]
+        output[i] = (samples[i] * (1.0 - config.wet_mix) + sum * config.wet_mix).clamp(-1.0, 1.0);
     }
 
     output
@@ -542,8 +542,15 @@ impl PitchShiftConfig {
 /// Note: For high-quality pitch shifting, consider using a dedicated library
 /// or the AI frame interpolation for time-stretching.
 pub fn pitch_shift(samples: &[f32], _sample_rate: u32, config: PitchShiftConfig) -> Vec<f32> {
+    if samples.is_empty() {
+        return Vec::new();
+    }
     let ratio = 2.0f32.powf(config.semitones / 12.0);
-    let new_len = (samples.len() as f32 / ratio) as usize;
+    if ratio <= 0.0 || !ratio.is_finite() {
+        return samples.to_vec();
+    }
+    let new_len_f = samples.len() as f64 / ratio as f64;
+    let new_len = (new_len_f.clamp(0.0, usize::MAX as f64)) as usize;
 
     let mut output = vec![0.0f32; new_len];
 
@@ -735,7 +742,9 @@ pub fn chorus(samples: &[f32], sample_rate: u32, config: ChorusConfig) -> Vec<f3
                 read_pos
             };
 
-            let idx = read_pos as usize % buffer.len();
+            // Ensure read_pos is non-negative before converting to usize
+            let read_pos = read_pos.max(0.0);
+            let idx = (read_pos as usize) % buffer.len();
             let frac = read_pos - read_pos.floor();
             let next_idx = (idx + 1) % buffer.len();
 
@@ -807,7 +816,9 @@ pub fn flanger(samples: &[f32], sample_rate: u32, config: FlangerConfig) -> Vec<
             read_pos
         };
 
-        let idx = read_pos as usize % buffer.len();
+        // Ensure read_pos is non-negative before converting to usize
+        let read_pos = read_pos.max(0.0);
+        let idx = (read_pos as usize) % buffer.len();
         let frac = read_pos - read_pos.floor();
         let next_idx = (idx + 1) % buffer.len();
 
@@ -1073,6 +1084,46 @@ mod tests {
         let config = EqConfig::voice_clarity();
         let output = equalizer(&[], 44100, &config);
         assert!(output.is_empty());
+    }
+
+    #[test]
+    fn test_reverb_output_clamped() {
+        // Test that reverb output doesn't exceed [-1, 1]
+        let samples = vec![1.0; 4410]; // Full amplitude signal
+        let output = reverb(&samples, 44100, ReverbConfig::cathedral());
+        assert!(output.iter().all(|&s| s >= -1.0 && s <= 1.0),
+            "Reverb output must be clamped to [-1, 1]");
+    }
+
+    #[test]
+    fn test_pitch_shift_empty_input() {
+        let output = pitch_shift(&[], 44100, PitchShiftConfig::new(12.0));
+        assert!(output.is_empty());
+    }
+
+    #[test]
+    fn test_pitch_shift_extreme_semitones() {
+        let samples = generate_sine(440.0, 44100, 0.1);
+        // -24 semitones should produce a very long output, not panic
+        let output = pitch_shift(&samples, 44100, PitchShiftConfig::new(-24.0));
+        assert!(output.len() > samples.len());
+        assert!(output.iter().all(|s| s.is_finite()));
+    }
+
+    #[test]
+    fn test_chorus_output_finite() {
+        let samples = generate_sine(440.0, 44100, 0.1);
+        let output = chorus(&samples, 44100, ChorusConfig::default());
+        assert!(output.iter().all(|s| s.is_finite()),
+            "Chorus output must be finite");
+    }
+
+    #[test]
+    fn test_flanger_output_finite() {
+        let samples = generate_sine(440.0, 44100, 0.1);
+        let output = flanger(&samples, 44100, FlangerConfig::default());
+        assert!(output.iter().all(|s| s.is_finite()),
+            "Flanger output must be finite");
     }
 
     #[test]

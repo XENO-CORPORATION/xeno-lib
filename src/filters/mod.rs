@@ -134,7 +134,7 @@ pub fn vignette(
     let (width, height) = (rgba.width() as f32, rgba.height() as f32);
     let center_x = width / 2.0;
     let center_y = height / 2.0;
-    let max_dist = ((center_x * center_x + center_y * center_y) as f32).sqrt();
+    let max_dist = (center_x * center_x + center_y * center_y).sqrt();
     let vignette_radius = max_dist * radius;
 
     for (x, y, pixel) in rgba.enumerate_pixels_mut() {
@@ -146,9 +146,14 @@ pub fn vignette(
         let factor = if dist < vignette_radius {
             1.0
         } else {
-            let normalized = (dist - vignette_radius) / (max_dist - vignette_radius);
-            let vignette = 1.0 - (normalized * strength).min(1.0);
-            vignette.max(0.0)
+            let denom = max_dist - vignette_radius;
+            if denom < f32::EPSILON {
+                0.0
+            } else {
+                let normalized = (dist - vignette_radius) / denom;
+                let vignette = 1.0 - (normalized * strength).min(1.0);
+                vignette.max(0.0)
+            }
         };
 
         pixel[0] = clamp_to_u8(pixel[0] as f32 * factor);
@@ -270,10 +275,12 @@ pub fn chromakey(
         // Calculate alpha based on distance
         let alpha = if dist < tolerance_dist {
             0.0 // Fully transparent
-        } else if dist < tolerance_dist + softness_dist {
+        } else if softness_dist > 0.0 && dist < tolerance_dist + softness_dist {
             // Soft edge
             let t = (dist - tolerance_dist) / softness_dist;
             t
+        } else if dist <= tolerance_dist {
+            0.0
         } else {
             1.0 // Fully opaque
         };

@@ -570,6 +570,11 @@ fn calculate_noise(gray: &image::GrayImage) -> f32 {
         }
     }
 
+    // If no blocks were analyzed (image too small), assume no noise
+    if min_variance == f64::MAX {
+        return 0.0;
+    }
+
     // Noise level based on variance in smooth regions
     let noise_estimate = min_variance.sqrt();
 
@@ -595,19 +600,10 @@ fn calculate_contrast(metrics: &QualityMetrics) -> f32 {
     let std_score = (metrics.std_deviation / 80.0 * 100.0).min(100.0);
 
     // Find histogram range
-    let mut min_val = 0usize;
-    let mut max_val = 255usize;
+    let min_val = metrics.histogram.iter().position(|&c| c > 0).unwrap_or(0);
+    let max_val = metrics.histogram.iter().rposition(|&c| c > 0).unwrap_or(255);
 
-    for (i, &count) in metrics.histogram.iter().enumerate() {
-        if count > 0 && min_val == 0 {
-            min_val = i;
-        }
-        if count > 0 {
-            max_val = i;
-        }
-    }
-
-    let range = (max_val - min_val) as f64;
+    let range = max_val.saturating_sub(min_val) as f64;
     let range_score = (range / 255.0) * 100.0;
 
     // Combine both metrics
@@ -853,6 +849,26 @@ mod tests {
         assert!((config.sharpness_weight - 0.30).abs() < 0.01);
         assert!((config.noise_weight - 0.20).abs() < 0.01);
         assert_eq!(config.min_resolution, (640, 480));
+    }
+
+    #[test]
+    fn test_assess_small_image_no_panic() {
+        // Very small image (< block_size) should not cause calculate_noise to return MAX
+        let img = DynamicImage::new_rgb8(4, 4);
+        let config = QualityConfig::default();
+        let report = assess_quality(&img, &config);
+        // noise_level should be 0 for tiny images, not some huge value
+        assert!(report.noise_level < 50.0, "Small uniform image noise should be low, got {}", report.noise_level);
+    }
+
+    #[test]
+    fn test_contrast_all_zeros() {
+        // Image where all pixels are value 0 - min_val should correctly find bin 0
+        let img = DynamicImage::new_rgb8(10, 10);
+        let config = QualityConfig::default();
+        let report = assess_quality(&img, &config);
+        // Contrast should be very low for uniform image
+        assert!(report.contrast < 10.0);
     }
 
     #[test]
