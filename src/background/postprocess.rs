@@ -176,9 +176,11 @@ fn resize_mask(mask: &Array2<f32>, target_width: usize, target_height: usize) ->
     let scale_y = src_height as f32 / target_height as f32;
 
     // Bilinear interpolation using parallel iteration
+    // SAFETY: Array2::zeros always produces a standard-layout (contiguous) array,
+    // so as_slice_mut will never return None.
     resized
         .as_slice_mut()
-        .unwrap()
+        .expect("Array2::zeros always produces a contiguous array")
         .par_chunks_mut(target_width)
         .enumerate()
         .for_each(|(y, row)| {
