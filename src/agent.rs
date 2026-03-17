@@ -431,6 +431,8 @@ pub struct Capabilities {
     pub audio_encode_formats: Vec<String>,
     /// Available image transforms
     pub transforms: Vec<String>,
+    /// Available AI models
+    pub ai_models: Vec<String>,
     /// GPU decoder available (NVDEC)
     pub gpu_decode: bool,
     /// GPU encoder available (NVENC)
@@ -467,6 +469,7 @@ impl Capabilities {
                 "blur".to_string(),
                 "sharpen".to_string(),
             ],
+            ai_models: Vec::new(),
             gpu_decode: false,
             gpu_encode: false,
             sw_av1_decode: false,
@@ -563,7 +566,48 @@ impl Capabilities {
         #[cfg(feature = "background-removal")]
         {
             caps.background_removal = true;
+            caps.ai_models.push("background-removal".to_string());
         }
+
+        // AI model capabilities
+        #[cfg(feature = "upscale")]
+        caps.ai_models.push("upscale".to_string());
+
+        #[cfg(feature = "face-restore")]
+        caps.ai_models.push("face-restore".to_string());
+
+        #[cfg(feature = "colorize")]
+        caps.ai_models.push("colorize".to_string());
+
+        #[cfg(feature = "inpaint")]
+        caps.ai_models.push("inpaint".to_string());
+
+        #[cfg(feature = "face-detect")]
+        caps.ai_models.push("face-detect".to_string());
+
+        #[cfg(feature = "depth")]
+        caps.ai_models.push("depth".to_string());
+
+        #[cfg(feature = "frame-interpolate")]
+        caps.ai_models.push("frame-interpolate".to_string());
+
+        #[cfg(feature = "transcribe")]
+        caps.ai_models.push("transcribe".to_string());
+
+        #[cfg(feature = "audio-separate")]
+        caps.ai_models.push("audio-separate".to_string());
+
+        #[cfg(feature = "style-transfer")]
+        caps.ai_models.push("style-transfer".to_string());
+
+        #[cfg(feature = "ocr")]
+        caps.ai_models.push("ocr".to_string());
+
+        #[cfg(feature = "pose")]
+        caps.ai_models.push("pose".to_string());
+
+        #[cfg(feature = "face-analysis")]
+        caps.ai_models.push("face-analysis".to_string());
 
         caps
     }
@@ -587,6 +631,7 @@ impl ToAgentJson for Capabilities {
   "audio_codecs": {:?},
   "audio_encode_formats": {:?},
   "transforms": {:?},
+  "ai_models": {:?},
   "gpu_decode": {},
   "gpu_encode": {},
   "sw_av1_decode": {},
@@ -601,6 +646,7 @@ impl ToAgentJson for Capabilities {
             self.audio_codecs,
             self.audio_encode_formats,
             self.transforms,
+            self.ai_models,
             self.gpu_decode,
             self.gpu_encode,
             self.sw_av1_decode,

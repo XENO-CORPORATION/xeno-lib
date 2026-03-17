@@ -55,6 +55,7 @@ pub mod analysis;
 pub mod composite;
 pub mod error;
 pub mod filters;
+pub mod model_utils;
 pub mod transforms;
 
 #[cfg(feature = "background-removal")]

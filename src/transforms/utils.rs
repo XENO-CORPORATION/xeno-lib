@@ -34,11 +34,7 @@ where
         .checked_mul(channels)
         .ok_or(TransformError::AllocationFailed { width, height })?;
 
-    let mut data = Vec::<P::Subpixel>::with_capacity(len);
-    unsafe {
-        // SAFETY: All callers fully initialize every element of `data` before it is read.
-        data.set_len(len);
-    }
+    let data = vec![P::Subpixel::DEFAULT_MIN_VALUE; len];
     Ok(data)
 }
 
