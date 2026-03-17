@@ -227,6 +227,34 @@ pub use crate::audio_separate::{
     AudioStem, SeparatedAudio, SeparationConfig, SeparationModel, SeparatorSession, StereoAudio,
 };
 
+// New AI Generative Modules (Phase 4)
+
+#[cfg(feature = "text-to-3d")]
+pub mod text_to_3d;
+
+#[cfg(feature = "voice-clone")]
+pub mod voice_clone;
+
+#[cfg(feature = "music-gen")]
+pub mod music_gen;
+
+#[cfg(feature = "video-gen")]
+pub mod video_gen;
+
+#[cfg(feature = "noise-reduce")]
+pub mod noise_reduce;
+
+// Performance & Infrastructure Modules
+
+#[cfg(feature = "model-quantize")]
+pub mod quantize;
+
+#[cfg(feature = "gpu-memory")]
+pub mod gpu_memory;
+
+#[cfg(feature = "batch-inference")]
+pub mod batch_inference;
+
 // New Feature Modules
 
 #[cfg(feature = "subtitle")]
@@ -327,6 +355,59 @@ pub use crate::audio::encode::{
 
 #[cfg(feature = "video-decode-vp9")]
 pub use crate::video::decode::vp9::Vp9Decoder;
+
+// Phase 4: Generative AI Exports
+
+#[cfg(feature = "text-to-3d")]
+pub use crate::text_to_3d::{
+    generate_3d, generate_3d_quick, load_mesh_model,
+    GeneratedMesh, Mesh3DConfig, Mesh3DModel, Mesh3DSession, MeshFormat,
+    Triangle, Vertex,
+};
+
+#[cfg(feature = "voice-clone")]
+pub use crate::voice_clone::{
+    extract_embedding, synthesize_speech, load_voice_model,
+    SynthesizedAudio, VoiceCloneConfig, VoiceCloneModel, VoiceCloneSession, VoiceEmbedding,
+};
+
+#[cfg(feature = "music-gen")]
+pub use crate::music_gen::{
+    generate_music, generate_music_with_melody, load_music_model,
+    GeneratedMusic, MusicGenConfig, MusicGenModel, MusicGenSession,
+};
+
+#[cfg(feature = "video-gen")]
+pub use crate::video_gen::{
+    generate_video, generate_video_from_text, load_video_gen_model,
+    GeneratedVideo, VideoGenConfig, VideoGenModel, VideoGenSession,
+};
+
+#[cfg(feature = "noise-reduce")]
+pub use crate::noise_reduce::{
+    reduce_noise, reduce_noise_quick,
+    NoiseReduceConfig, NoiseReduceModel, NoiseReduceResult,
+};
+
+// Performance & Infrastructure Exports
+
+#[cfg(feature = "model-quantize")]
+pub use crate::quantize::{
+    quantize_model, estimate_quantized_size,
+    QuantizeConfig, QuantizeFormat, QuantizeResult, QuantizeBenchmark,
+};
+
+#[cfg(feature = "gpu-memory")]
+pub use crate::gpu_memory::{
+    estimate_model_memory_mb,
+    GpuConfig, GpuMemoryPool, MemorySummary, ModelAllocation,
+};
+
+#[cfg(feature = "batch-inference")]
+pub use crate::batch_inference::{
+    timed_batch,
+    BatchConfig, BatchProcessor, BatchResult,
+};
 
 #[cfg(feature = "format-avif")]
 pub use crate::formats::avif::{

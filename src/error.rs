@@ -92,7 +92,11 @@ pub enum TransformError {
         feature = "style-transfer",
         feature = "ocr",
         feature = "pose",
-        feature = "face-analysis"
+        feature = "face-analysis",
+        feature = "text-to-3d",
+        feature = "voice-clone",
+        feature = "music-gen",
+        feature = "video-gen"
     ))]
     #[error("model file not found at {path}")]
     ModelNotFound { path: String },
@@ -112,7 +116,11 @@ pub enum TransformError {
         feature = "style-transfer",
         feature = "ocr",
         feature = "pose",
-        feature = "face-analysis"
+        feature = "face-analysis",
+        feature = "text-to-3d",
+        feature = "voice-clone",
+        feature = "music-gen",
+        feature = "video-gen"
     ))]
     #[error("failed to load ONNX model: {message}")]
     ModelLoadFailed { message: String },
@@ -132,7 +140,11 @@ pub enum TransformError {
         feature = "style-transfer",
         feature = "ocr",
         feature = "pose",
-        feature = "face-analysis"
+        feature = "face-analysis",
+        feature = "text-to-3d",
+        feature = "voice-clone",
+        feature = "music-gen",
+        feature = "video-gen"
     ))]
     #[error("ONNX inference failed: {message}")]
     InferenceFailed { message: String },

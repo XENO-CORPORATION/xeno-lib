@@ -609,6 +609,22 @@ impl Capabilities {
         #[cfg(feature = "face-analysis")]
         caps.ai_models.push("face-analysis".to_string());
 
+        // Phase 4: Generative AI models
+        #[cfg(feature = "text-to-3d")]
+        caps.ai_models.push("text-to-3d".to_string());
+
+        #[cfg(feature = "voice-clone")]
+        caps.ai_models.push("voice-clone".to_string());
+
+        #[cfg(feature = "music-gen")]
+        caps.ai_models.push("music-gen".to_string());
+
+        #[cfg(feature = "video-gen")]
+        caps.ai_models.push("video-gen".to_string());
+
+        #[cfg(feature = "noise-reduce")]
+        caps.ai_models.push("noise-reduce".to_string());
+
         caps
     }
 }

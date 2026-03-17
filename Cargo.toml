@@ -146,7 +146,35 @@ transcribe-cuda = ["transcribe", "ort?/cuda"]     # AI transcription (GPU)
 audio-separate = ["ort", "ndarray"]               # AI audio separation (CPU)
 audio-separate-cuda = ["audio-separate", "ort?/cuda"]
 
-# NEW FEATURES (Phase 3)
+# NEW FEATURES (Phase 3+4)
+
+# AI Text-to-3D mesh generation (TripoSR, InstantMesh, Wonder3D)
+text-to-3d = ["ort", "ndarray"]                    # 3D mesh generation (CPU)
+text-to-3d-cuda = ["text-to-3d", "ort?/cuda"]      # 3D mesh generation (GPU)
+
+# AI Voice Cloning / TTS (XTTS, Bark, Tortoise)
+voice-clone = ["ort", "ndarray"]                   # Voice synthesis (CPU)
+voice-clone-cuda = ["voice-clone", "ort?/cuda"]    # Voice synthesis (GPU)
+
+# AI Music Generation (MusicGen, Riffusion)
+music-gen = ["ort", "ndarray"]                     # Music generation (CPU)
+music-gen-cuda = ["music-gen", "ort?/cuda"]        # Music generation (GPU)
+
+# AI Video Generation (Stable Video Diffusion, AnimateDiff)
+video-gen = ["ort", "ndarray"]                     # Video generation (CPU)
+video-gen-cuda = ["video-gen", "ort?/cuda"]        # Video generation (GPU)
+
+# AI Noise Reduction (RNNoise, DTLN, DeepFilterNet)
+noise-reduce = []                                  # Audio noise reduction (stub, CPU-based)
+
+# Model quantization pipeline (FP16, INT8)
+model-quantize = []                                # ONNX model quantization tools
+
+# GPU memory management
+gpu-memory = []                                    # GPU memory pool and model swapping
+
+# Batch inference utilities
+batch-inference = []                               # Batched AI model processing
 
 # Subtitle support (SRT, VTT, ASS parsing and burn-in)
 subtitle = []                                      # Subtitle parsing and rendering
@@ -199,16 +227,26 @@ ai-video-cuda = ["frame-interpolate-cuda", "transcribe-cuda", "audio-separate-cu
 ai-vision = ["style-transfer", "ocr", "pose", "face-analysis"]
 ai-vision-cuda = ["style-transfer-cuda", "ocr-cuda", "pose-cuda", "face-analysis-cuda"]
 
+# Generative AI features bundle (Phase 4)
+ai-generative = ["text-to-3d", "voice-clone", "music-gen", "video-gen"]
+ai-generative-cuda = ["text-to-3d-cuda", "voice-clone-cuda", "music-gen-cuda", "video-gen-cuda"]
+
+# Audio AI features bundle
+ai-audio = ["audio-separate", "noise-reduce"]
+
 # All AI features combined
-ai-full = ["ai", "ai-video", "ai-vision"]         # All AI features
-ai-full-cuda = ["ai-cuda", "ai-video-cuda", "ai-vision-cuda"]
+ai-full = ["ai", "ai-video", "ai-vision", "ai-generative", "ai-audio"]
+ai-full-cuda = ["ai-cuda", "ai-video-cuda", "ai-vision-cuda", "ai-generative-cuda"]
 
 # Pro utilities (pure Rust, no AI)
 pro-utils = ["qrcode", "quality", "document", "vectorize"]
 
+# Performance & infrastructure
+perf-utils = ["model-quantize", "gpu-memory", "batch-inference"]
+
 # Everything bundle
-full = ["multimedia", "ai-full", "pro-utils", "latex"]
-full-cuda = ["multimedia", "ai-full-cuda", "pro-utils"]
+full = ["multimedia", "ai-full", "pro-utils", "latex", "perf-utils"]
+full-cuda = ["multimedia", "ai-full-cuda", "pro-utils", "perf-utils"]
 
 [dev-dependencies]
 chrono = "0.4"
