@@ -862,7 +862,7 @@ pub async fn style_transfer(
             "mosaic" => xeno_lib::PretrainedStyle::Mosaic,
             "rain_princess" | "rain-princess" => xeno_lib::PretrainedStyle::RainPrincess,
             "udnie" => xeno_lib::PretrainedStyle::Udnie,
-            "pointilism" | "pointillism" => xeno_lib::PretrainedStyle::Pointilism,
+            "pointilism" | "pointillism" => xeno_lib::PretrainedStyle::Pointillism,
             _ => xeno_lib::PretrainedStyle::Mosaic, // default fallback
         };
         let config = xeno_lib::StyleConfig {

@@ -27,15 +27,18 @@ xeno-lib = { path = "..", features = [
   "audio",
   "audio-encode",
   "audio-encode-flac",
+  "audio-encode-opus",
   "audio-encode-aac",
   "frame-interpolate",
   "transcribe",
   "audio-separate",
   "hardware-detect",
   "video",
+  "video-encode-h264",
   "video-decode-hevc",
   "video-decode-vp9",
   "video-encode-nvenc",
+  "containers",
   "format-avif",
   "format-heif",
 ] }
@@ -65,5 +68,7 @@ rav1e = { path = "../vendor/rav1e" }
 default = []
 # GPU-accelerated AI inference
 cuda = []
+# AV1 encoding via rav1e (requires NASM installed)
+video-encode = ["xeno-lib/video-encode"]
 # LaTeX compilation via embedded Tectonic engine
 latex = ["xeno-lib/latex"]

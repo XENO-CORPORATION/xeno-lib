@@ -209,3 +209,123 @@ pub fn encode_flac(
 
     Ok(bytes.into())
 }
+
+/// Encode f32 PCM samples to Ogg Opus format (high-quality lossy compression).
+///
+/// Opus is the recommended lossy audio format for xeno-sound export.
+/// It provides excellent quality at low bitrates and is royalty-free.
+/// The output is a complete Ogg Opus file (with Ogg container framing).
+///
+/// # Arguments
+/// * `samples` - Interleaved PCM samples as f64 array (will be converted to f32 internally)
+/// * `sample_rate` - Input sample rate in Hz. Opus internally operates at 48kHz;
+///                    input will be resampled if needed. Valid: 8000, 12000, 16000, 24000, 48000.
+/// * `channels` - Number of channels (1 = mono, 2 = stereo)
+/// * `bitrate` - Target bitrate in bits per second (e.g., 64000, 96000, 128000, 192000)
+///
+/// # Returns
+/// A `Buffer` containing the complete Ogg Opus file bytes.
+///
+/// # Errors
+/// - If samples array is empty
+/// - If sample rate is not a valid Opus sample rate
+/// - If channel count is not 1 or 2
+/// - If any sample is NaN or Infinity
+/// - If Opus encoding fails
+///
+/// # Example (JavaScript)
+///
+/// ```js
+/// const { encodeOpus } = require('@xeno/lib');
+/// const opusBytes = encodeOpus(pcmSamples, 48000, 2, 128000);
+/// fs.writeFileSync('output.opus', opusBytes);
+/// ```
+#[napi]
+pub fn encode_opus(
+    samples: Float64Array,
+    sample_rate: u32,
+    channels: u32,
+    bitrate: u32,
+) -> Result<Buffer> {
+    validate_audio_samples(&samples, sample_rate, channels)?;
+
+    // Validate Opus-specific constraints
+    let valid_rates = [8000, 12000, 16000, 24000, 48000];
+    if !valid_rates.contains(&sample_rate) {
+        return Err(Error::new(
+            Status::InvalidArg,
+            format!(
+                "Opus sample rate must be one of {:?}, got {}",
+                valid_rates, sample_rate
+            ),
+        ));
+    }
+
+    if channels == 0 || channels > 2 {
+        return Err(Error::new(
+            Status::InvalidArg,
+            format!("Opus channels must be 1 (mono) or 2 (stereo), got {}", channels),
+        ));
+    }
+
+    if bitrate == 0 {
+        return Err(Error::new(
+            Status::InvalidArg,
+            "Opus bitrate must be > 0".to_string(),
+        ));
+    }
+
+    let f32_samples: Vec<f32> = samples.iter().map(|&s| s as f32).collect();
+
+    let config = xeno_lib::audio::encode::OpusEncoderConfig::new(sample_rate, channels as u8)
+        .with_bitrate(bitrate);
+
+    let bytes =
+        xeno_lib::audio::encode::encode_opus_ogg_to_bytes(&f32_samples, config).map_err(|e| {
+            Error::new(Status::GenericFailure, format!("Opus encode failed: {e}"))
+        })?;
+
+    Ok(bytes.into())
+}
+
+/// Get available audio encoder formats.
+///
+/// Returns an object describing which audio encoders are compiled in
+/// and available at runtime. Use this to decide which format to offer
+/// for audio export.
+///
+/// # Example (JavaScript)
+///
+/// ```js
+/// const { getAudioEncoders } = require('@xeno/lib');
+/// const encoders = getAudioEncoders();
+/// console.log(`WAV: ${encoders.wav}`);      // always true
+/// console.log(`FLAC: ${encoders.flac}`);    // true if audio-encode-flac
+/// console.log(`Opus: ${encoders.opus}`);    // true if audio-encode-opus
+/// console.log(`AAC: ${encoders.aac}`);      // true if fdk-aac linked
+/// ```
+#[napi(object)]
+pub struct AudioEncoders {
+    /// WAV encoding (always available).
+    pub wav: bool,
+    /// FLAC lossless encoding.
+    pub flac: bool,
+    /// Opus lossy encoding (Ogg Opus output).
+    pub opus: bool,
+    /// AAC lossy encoding (stub until fdk-aac is linked).
+    pub aac: bool,
+}
+
+/// Get available audio encoder formats.
+#[napi]
+pub fn get_audio_encoders() -> AudioEncoders {
+    // audio-encode, audio-encode-flac, and audio-encode-opus are all enabled
+    // unconditionally in xeno-lib-napi's Cargo.toml dependency on xeno-lib.
+    // AAC is a stub until fdk-aac C bindings are integrated.
+    AudioEncoders {
+        wav: true,  // hound — always available
+        flac: true, // flacenc — pure Rust, always enabled
+        opus: true, // audiopus — libopus bindings, always enabled
+        aac: xeno_lib::audio::encode::AudioOutputFormat::Aac.is_supported(),
+    }
+}
