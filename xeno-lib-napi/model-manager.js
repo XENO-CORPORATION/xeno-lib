@@ -311,6 +311,11 @@ class ModelManager {
             `Hash mismatch for ${info.file}: expected ${info.sha256}, got ${hash}`
           );
         }
+      } else {
+        console.warn(
+          `[xeno-lib] SHA256 hash not available for model "${modelName}" (${info.file}) — skipping integrity verification. ` +
+          `Populate the sha256 field in models/manifest.json to enable hash verification.`
+        );
       }
 
       // Atomic rename
