@@ -1,0 +1,270 @@
+{
+  "version": "1.0.0",
+  "baseUrl": "https://updates.xenostudio.ai/models",
+  "models": {
+    "birefnet": {
+      "file": "birefnet-general.onnx",
+      "size": 112000000,
+      "sha256": "",
+      "features": ["background-removal"],
+      "apps": ["xeno-pixel", "xeno-hub"],
+      "description": "BiRefNet general background removal model"
+    },
+    "real-esrgan-x2": {
+      "file": "realesrgan_x2.onnx",
+      "size": 28000000,
+      "sha256": "",
+      "features": ["upscale"],
+      "apps": ["xeno-pixel"],
+      "description": "Real-ESRGAN 2x upscaler"
+    },
+    "real-esrgan-x4": {
+      "file": "realesrgan_x4plus.onnx",
+      "size": 67000000,
+      "sha256": "",
+      "features": ["upscale"],
+      "apps": ["xeno-pixel"],
+      "description": "Real-ESRGAN 4x upscaler (default)"
+    },
+    "real-esrgan-x4-anime": {
+      "file": "realesrgan_x4plus_anime.onnx",
+      "size": 67000000,
+      "sha256": "",
+      "features": ["upscale"],
+      "apps": ["xeno-pixel"],
+      "description": "Real-ESRGAN 4x upscaler optimized for anime"
+    },
+    "real-esrgan-x8": {
+      "file": "realesrgan_x8.onnx",
+      "size": 134000000,
+      "sha256": "",
+      "features": ["upscale"],
+      "apps": ["xeno-pixel"],
+      "description": "Real-ESRGAN 8x upscaler"
+    },
+    "gfpgan": {
+      "file": "gfpgan.onnx",
+      "size": 87000000,
+      "sha256": "",
+      "features": ["face-restore"],
+      "apps": ["xeno-pixel"],
+      "description": "GFPGAN face restoration model"
+    },
+    "codeformer": {
+      "file": "codeformer.onnx",
+      "size": 75000000,
+      "sha256": "",
+      "features": ["face-restore"],
+      "apps": ["xeno-pixel"],
+      "description": "CodeFormer face restoration model"
+    },
+    "ddcolor": {
+      "file": "ddcolor.onnx",
+      "size": 82000000,
+      "sha256": "",
+      "features": ["colorize"],
+      "apps": ["xeno-pixel"],
+      "description": "DDColor artistic image colorization"
+    },
+    "lama": {
+      "file": "lama.onnx",
+      "size": 102000000,
+      "sha256": "",
+      "features": ["inpaint"],
+      "apps": ["xeno-pixel"],
+      "description": "LaMa large-mask inpainting model"
+    },
+    "scrfd": {
+      "file": "scrfd_10g.onnx",
+      "size": 16000000,
+      "sha256": "",
+      "features": ["face-detect"],
+      "apps": ["xeno-pixel"],
+      "description": "SCRFD 10G face detection with landmarks"
+    },
+    "depth-anything": {
+      "file": "depth_anything.onnx",
+      "size": 98000000,
+      "sha256": "",
+      "features": ["depth"],
+      "apps": ["xeno-pixel"],
+      "description": "Depth Anything V2 monocular depth estimation"
+    },
+    "midas-large": {
+      "file": "midas_v31_large.onnx",
+      "size": 105000000,
+      "sha256": "",
+      "features": ["depth"],
+      "apps": ["xeno-pixel"],
+      "description": "MiDaS v3.1 large depth estimation"
+    },
+    "midas-small": {
+      "file": "midas_v31_small.onnx",
+      "size": 25000000,
+      "sha256": "",
+      "features": ["depth"],
+      "apps": ["xeno-pixel"],
+      "description": "MiDaS v3.1 small depth estimation"
+    },
+    "whisper-tiny": {
+      "file": "whisper-tiny.onnx",
+      "size": 39000000,
+      "sha256": "",
+      "features": ["transcribe"],
+      "apps": ["xeno-motion", "xeno-sound"],
+      "description": "Whisper tiny speech-to-text model"
+    },
+    "whisper-base": {
+      "file": "whisper-base.onnx",
+      "size": 74000000,
+      "sha256": "",
+      "features": ["transcribe"],
+      "apps": ["xeno-motion", "xeno-sound"],
+      "description": "Whisper base speech-to-text model (default)"
+    },
+    "whisper-small": {
+      "file": "whisper-small.onnx",
+      "size": 244000000,
+      "sha256": "",
+      "features": ["transcribe"],
+      "apps": ["xeno-motion", "xeno-sound"],
+      "description": "Whisper small speech-to-text model"
+    },
+    "demucs-hybrid": {
+      "file": "demucs_hybrid.onnx",
+      "size": 83000000,
+      "sha256": "",
+      "features": ["audio-separate"],
+      "apps": ["xeno-motion", "xeno-sound"],
+      "description": "HTDemucs hybrid stem separator (default)"
+    },
+    "rife-v4": {
+      "file": "rife-v4.6.onnx",
+      "size": 30000000,
+      "sha256": "",
+      "features": ["frame-interpolate"],
+      "apps": ["xeno-motion"],
+      "description": "RIFE v4.6 frame interpolation model"
+    },
+    "rnnoise": {
+      "file": "rnnoise.onnx",
+      "size": 2000000,
+      "sha256": "",
+      "features": ["noise-reduce"],
+      "apps": ["xeno-sound"],
+      "description": "RNNoise audio noise reduction"
+    },
+    "style-mosaic": {
+      "file": "style_mosaic.onnx",
+      "size": 7000000,
+      "sha256": "",
+      "features": ["style-transfer"],
+      "apps": ["xeno-pixel"],
+      "description": "Neural style transfer - Mosaic"
+    },
+    "style-candy": {
+      "file": "style_candy.onnx",
+      "size": 7000000,
+      "sha256": "",
+      "features": ["style-transfer"],
+      "apps": ["xeno-pixel"],
+      "description": "Neural style transfer - Candy"
+    },
+    "style-rain-princess": {
+      "file": "style_rain_princess.onnx",
+      "size": 7000000,
+      "sha256": "",
+      "features": ["style-transfer"],
+      "apps": ["xeno-pixel"],
+      "description": "Neural style transfer - Rain Princess"
+    },
+    "style-udnie": {
+      "file": "style_udnie.onnx",
+      "size": 7000000,
+      "sha256": "",
+      "features": ["style-transfer"],
+      "apps": ["xeno-pixel"],
+      "description": "Neural style transfer - Udnie"
+    },
+    "style-pointillism": {
+      "file": "style_pointillism.onnx",
+      "size": 7000000,
+      "sha256": "",
+      "features": ["style-transfer"],
+      "apps": ["xeno-pixel"],
+      "description": "Neural style transfer - Pointillism"
+    },
+    "style-starry-night": {
+      "file": "style_starry_night.onnx",
+      "size": 7000000,
+      "sha256": "",
+      "features": ["style-transfer"],
+      "apps": ["xeno-pixel"],
+      "description": "Neural style transfer - Starry Night"
+    },
+    "style-kandinsky": {
+      "file": "style_kandinsky.onnx",
+      "size": 7000000,
+      "sha256": "",
+      "features": ["style-transfer"],
+      "apps": ["xeno-pixel"],
+      "description": "Neural style transfer - Kandinsky"
+    },
+    "paddle-ocr-det": {
+      "file": "paddle_det.onnx",
+      "size": 4000000,
+      "sha256": "",
+      "features": ["ocr"],
+      "apps": ["xeno-pixel"],
+      "description": "PaddleOCR text detection model"
+    },
+    "paddle-ocr-rec": {
+      "file": "paddle_rec.onnx",
+      "size": 5000000,
+      "sha256": "",
+      "features": ["ocr"],
+      "apps": ["xeno-pixel"],
+      "description": "PaddleOCR text recognition model"
+    },
+    "movenet-lightning": {
+      "file": "movenet_lightning.onnx",
+      "size": 9000000,
+      "sha256": "",
+      "features": ["pose"],
+      "apps": ["xeno-pixel"],
+      "description": "MoveNet Lightning pose estimation (fast)"
+    },
+    "movenet-thunder": {
+      "file": "movenet_thunder.onnx",
+      "size": 13000000,
+      "sha256": "",
+      "features": ["pose"],
+      "apps": ["xeno-pixel"],
+      "description": "MoveNet Thunder pose estimation (accurate)"
+    },
+    "age-estimation": {
+      "file": "age_estimation.onnx",
+      "size": 5000000,
+      "sha256": "",
+      "features": ["face-analysis"],
+      "apps": ["xeno-pixel"],
+      "description": "Multi-task CNN age estimation"
+    },
+    "gender-classification": {
+      "file": "gender_classification.onnx",
+      "size": 5000000,
+      "sha256": "",
+      "features": ["face-analysis"],
+      "apps": ["xeno-pixel"],
+      "description": "Multi-task CNN gender classification"
+    },
+    "emotion-recognition": {
+      "file": "emotion_recognition.onnx",
+      "size": 5000000,
+      "sha256": "",
+      "features": ["face-analysis"],
+      "apps": ["xeno-pixel"],
+      "description": "Multi-task CNN emotion recognition"
+    }
+  }
+}

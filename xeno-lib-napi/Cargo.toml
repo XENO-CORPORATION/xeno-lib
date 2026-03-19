@@ -14,6 +14,16 @@ crate-type = ["cdylib"]
 xeno-lib = { path = "..", features = [
   "background-removal",
   "upscale",
+  "face-restore",
+  "colorize",
+  "inpaint",
+  "face-detect",
+  "depth",
+  "style-transfer",
+  "ocr",
+  "pose",
+  "face-analysis",
+  "noise-reduce",
   "audio",
   "audio-encode",
   "audio-encode-flac",
@@ -39,6 +49,9 @@ image = { version = "0.25", default-features = true }
 
 # Async runtime for tokio-based async functions
 tokio = { version = "1", features = ["rt", "sync"] }
+
+# Home directory detection for model management
+dirs-next = "2"
 
 [build-dependencies]
 napi-build = "2"

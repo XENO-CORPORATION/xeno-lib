@@ -12,6 +12,8 @@
   "files": [
     "index.js",
     "index.d.ts",
+    "model-manager.js",
+    "model-manager.d.ts",
     "*.node"
   ],
   "napi": {
