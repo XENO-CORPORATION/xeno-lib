@@ -1,3 +1,9 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// All ONNX Runtime inference (model loading, detection inference, NMS) should move to xeno-rt.
+// The crop_faces() function is pure image processing and STAYS in xeno-lib.
+// The visualize_detections() function is pure drawing and STAYS in xeno-lib.
+// The DetectedFace/FaceLandmarks structs should be shared types available to both crates.
+//!
 //! AI-powered face detection using SCRFD.
 //!
 //! This module provides high-performance face detection with

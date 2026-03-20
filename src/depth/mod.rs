@@ -1,3 +1,8 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// All ONNX Runtime inference (model loading, depth inference, pre/postprocessing) should move
+// to xeno-rt. The apply_depth_blur() function is pure image processing and STAYS in xeno-lib.
+// The DepthMap struct should be a shared type.
+//!
 //! AI-powered depth estimation using MiDaS.
 //!
 //! This module provides monocular depth estimation to generate

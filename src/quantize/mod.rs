@@ -1,3 +1,7 @@
+// TODO: MIGRATE TO XENO-RT — this module provides ONNX model quantization and belongs in the
+// inference runtime. All quantization (FP16, INT8, mixed precision) is model-specific tooling
+// that should move to xeno-rt.
+//!
 //! Model quantization pipeline for ONNX models.
 //!
 //! Converts ONNX models from FP32 to FP16 or INT8 to reduce model size and

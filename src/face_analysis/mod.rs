@@ -1,3 +1,8 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// All ONNX Runtime inference (model loading, face analysis inference) should move to xeno-rt.
+// The Gender, Emotion enums and FaceAnalysisResult struct are pure data types and could STAY
+// in xeno-lib as shared types. The visualize_analysis() drawing function STAYS.
+//!
 //! AI-powered face analysis: age, gender, and emotion detection.
 //!
 //! Analyze faces to estimate age, determine gender, and recognize emotions.

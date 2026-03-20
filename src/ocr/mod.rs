@@ -1,3 +1,8 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// All ONNX Runtime inference (model loading, text detection, text recognition) should move to
+// xeno-rt. The OcrResult/TextBlock/TextBox structs should be shared types. The visualize_ocr()
+// drawing function is pure processing and could STAY in xeno-lib.
+//!
 //! AI-powered Optical Character Recognition (OCR).
 //!
 //! Extract text from images using deep learning models.

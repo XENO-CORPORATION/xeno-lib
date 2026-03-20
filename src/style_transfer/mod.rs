@@ -1,3 +1,7 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// All ONNX Runtime inference (model loading, style transfer inference, pre/postprocessing) should
+// move to xeno-rt. No pure processing code remains in this module.
+//!
 //! AI-powered neural style transfer.
 //!
 //! Transform images into artistic styles using neural networks.

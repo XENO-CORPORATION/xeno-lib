@@ -1,3 +1,7 @@
+// TODO: MIGRATE TO XENO-RT — this module provides AI model path resolution and belongs in the
+// inference runtime. The home_dir() utility is generic and could stay, but default_model_path()
+// and models_dir() are AI-specific and should move to xeno-rt.
+//!
 //! Shared utilities for AI model path resolution and home directory detection.
 //!
 //! This module provides common functions used by all AI model modules to locate

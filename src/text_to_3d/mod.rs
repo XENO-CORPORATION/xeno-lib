@@ -1,3 +1,9 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// All ONNX Runtime inference (model loading, triplane inference, volume generation) should move
+// to xeno-rt. The Vertex, Triangle, GeneratedMesh structs and OBJ/STL export functions are pure
+// geometry/I/O and STAY in xeno-lib. The marching cubes algorithm (if implemented) is pure
+// processing and STAYS.
+//!
 //! AI-powered text/image to 3D mesh generation.
 //!
 //! This module converts 2D images into 3D triangle meshes using deep learning models.

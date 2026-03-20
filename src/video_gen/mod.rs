@@ -1,3 +1,7 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// All ONNX Runtime inference (model loading, Stable Video Diffusion / AnimateDiff inference)
+// should move to xeno-rt. The GeneratedVideo struct is a data type that should be shared.
+//!
 //! AI-powered video generation from images or text.
 //!
 //! Supports Stable Video Diffusion (image-to-video) and AnimateDiff (text-to-video).

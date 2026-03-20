@@ -1,3 +1,8 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// When AI inference is added (currently a stub with simple noise gating), the ONNX model loading
+// and inference should be in xeno-rt. The audio resampling and frame-based processing pipeline
+// could stay in xeno-lib as a pure DSP utility, with xeno-rt providing the per-frame gain mask.
+//!
 //! AI-powered audio noise reduction using RNNoise.
 //!
 //! This module provides deep-learning-based noise suppression for audio signals.

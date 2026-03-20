@@ -1,3 +1,8 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// All ONNX Runtime inference (model loading, tile-based inference, pre/postprocessing) should move
+// to xeno-rt. The tile splitting/merging logic in processor.rs is inference-specific and should also
+// move. Traditional (non-AI) upscaling via resize algorithms stays in xeno-lib transforms.
+//!
 //! AI-powered image upscaling using Real-ESRGAN.
 //!
 //! This module provides high-quality image super-resolution powered by the Real-ESRGAN

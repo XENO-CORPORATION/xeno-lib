@@ -1,3 +1,8 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// All ONNX Runtime inference (model loading, pose estimation inference) should move to xeno-rt.
+// The BodyKeypoint enum, SKELETON_CONNECTIONS, and visualize_pose() drawing function are pure
+// data/processing and STAY in xeno-lib.
+//!
 //! AI-powered human pose estimation.
 //!
 //! Detect body keypoints and skeletal structure in images.

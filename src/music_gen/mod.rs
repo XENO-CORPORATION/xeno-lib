@@ -1,3 +1,7 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// All ONNX Runtime inference (model loading, MusicGen/Riffusion inference, audio generation)
+// should move to xeno-rt. The GeneratedMusic struct is a data type that should be shared.
+//!
 //! AI-powered music generation from text descriptions.
 //!
 //! Supports MusicGen (Meta) for high-quality text-to-music and Riffusion

@@ -1,3 +1,10 @@
+// DEPRECATED: All AI model N-API bindings will be served by xeno-rt inference API instead.
+// When xeno-rt absorbs these models, consuming apps (Pixel, Motion, Sound, Hub) will call
+// xeno-rt's API (HTTP or IPC) for inference, not these N-API functions.
+// The non-AI functions in this file (denoise_image using spatial filter, denoise_audio using
+// limiter/normalization) are NOT deprecated and should move to the image_processing or
+// audio_processing NAPI modules.
+//!
 //! AI model bindings (Priority 3 -- for all apps).
 //!
 //! All AI functions are async because inference is slow.
@@ -195,6 +202,7 @@ pub struct StemSeparationResult {
 // Image AI
 // ---------------------------------------------------------------------------
 
+/// DEPRECATED: will be served by xeno-rt inference API instead.
 /// Remove the background from an RGBA image using AI (BiRefNet).
 ///
 /// The model is lazily loaded from `~/.xeno-lib/models/` on the first call
@@ -238,6 +246,7 @@ pub async fn remove_background(buffer: Buffer, width: u32, height: u32) -> Resul
     .map_err(|e| Error::new(Status::GenericFailure, format!("Task join error: {e}")))?
 }
 
+/// DEPRECATED: will be served by xeno-rt inference API instead.
 /// Upscale an RGBA image using AI (Real-ESRGAN).
 ///
 /// The model is lazily loaded from `~/.xeno-lib/models/` on the first call
@@ -271,10 +280,17 @@ pub async fn upscale_image(
     let data = buffer.to_vec();
     tokio::task::spawn_blocking(move || {
         let img = buffer_to_image(&data, width, height)?;
+        // Select the correct model based on the requested scale factor
+        let model = match scale {
+            2 => xeno_lib::UpscaleModel::RealEsrganX2,
+            4 => xeno_lib::UpscaleModel::RealEsrganX4Plus,
+            8 => xeno_lib::UpscaleModel::RealEsrganX8,
+            _ => xeno_lib::UpscaleModel::RealEsrganX4Plus, // fallback (validated above)
+        };
         with_session!(
             UPSCALER_SESSION,
             {
-                let config = xeno_lib::UpscaleConfig::default();
+                let config = xeno_lib::UpscaleConfig::new(model);
                 xeno_lib::load_upscaler(&config)
             },
             |session: &mut xeno_lib::UpscalerSession| -> Result<Buffer> {
@@ -358,6 +374,7 @@ pub async fn denoise_audio(
     .map_err(|e| Error::new(Status::GenericFailure, format!("Task join error: {e}")))?
 }
 
+/// DEPRECATED: will be served by xeno-rt inference API instead.
 /// Separate audio into stems (vocals, drums, bass, other) using AI (HTDemucs).
 ///
 /// The model is lazily loaded from `~/.xeno-lib/models/` on the first call
@@ -464,6 +481,7 @@ pub async fn separate_stems(file_path: String) -> Result<StemSeparationResult> {
     .map_err(|e| Error::new(Status::GenericFailure, format!("Task join error: {e}")))?
 }
 
+/// DEPRECATED: will be served by xeno-rt inference API instead.
 /// Transcribe audio from a file using AI (Whisper).
 ///
 /// The model is lazily loaded from `~/.xeno-lib/models/` on the first call
@@ -526,6 +544,7 @@ pub async fn transcribe_audio(file_path: String) -> Result<TranscriptionResult> 
     .map_err(|e| Error::new(Status::GenericFailure, format!("Task join error: {e}")))?
 }
 
+/// DEPRECATED: will be served by xeno-rt inference API instead.
 /// Interpolate a frame between two RGBA frames using AI (RIFE).
 ///
 /// The model is lazily loaded from `~/.xeno-lib/models/` on the first call
@@ -587,6 +606,7 @@ pub async fn interpolate_frames(
 // Face Restore (GFPGAN)
 // ---------------------------------------------------------------------------
 
+/// DEPRECATED: will be served by xeno-rt inference API instead.
 /// Restore faces in an RGBA image using AI (GFPGAN).
 ///
 /// Detects faces and enhances/restores their quality.
@@ -627,6 +647,7 @@ pub async fn restore_faces(buffer: Buffer, width: u32, height: u32) -> Result<Bu
 // Colorize (DDColor)
 // ---------------------------------------------------------------------------
 
+/// DEPRECATED: will be served by xeno-rt inference API instead.
 /// Colorize a grayscale RGBA image using AI (DDColor).
 ///
 /// Model is lazily loaded on first call and cached.
@@ -666,6 +687,7 @@ pub async fn colorize(buffer: Buffer, width: u32, height: u32) -> Result<Buffer>
 // Inpaint (LaMa)
 // ---------------------------------------------------------------------------
 
+/// DEPRECATED: will be served by xeno-rt inference API instead.
 /// Inpaint (fill) masked regions of an RGBA image using AI (LaMa).
 ///
 /// Model is lazily loaded on first call and cached.
@@ -732,6 +754,7 @@ pub async fn inpaint(
 // Face Detection (SCRFD)
 // ---------------------------------------------------------------------------
 
+/// DEPRECATED: will be served by xeno-rt inference API instead.
 /// Detect faces in an RGBA image using AI (SCRFD).
 ///
 /// Model is lazily loaded on first call and cached.
@@ -784,6 +807,7 @@ pub async fn detect_faces(
 // Depth Estimation (Depth Anything / MiDaS)
 // ---------------------------------------------------------------------------
 
+/// DEPRECATED: will be served by xeno-rt inference API instead.
 /// Estimate depth map from an RGBA image using AI (Depth Anything).
 ///
 /// Model is lazily loaded on first call and cached.
@@ -832,6 +856,7 @@ pub async fn estimate_depth(
 // Style Transfer (Fast NST)
 // ---------------------------------------------------------------------------
 
+/// DEPRECATED: will be served by xeno-rt inference API instead.
 /// Apply neural style transfer to an RGBA image using AI.
 ///
 /// Model is lazily loaded on first call and cached.
@@ -887,6 +912,7 @@ pub async fn style_transfer(
 // OCR (PaddleOCR)
 // ---------------------------------------------------------------------------
 
+/// DEPRECATED: will be served by xeno-rt inference API instead.
 /// Extract text from an RGBA image using AI (PaddleOCR).
 ///
 /// Model is lazily loaded on first call and cached.
@@ -942,6 +968,7 @@ pub async fn extract_text(
 // Pose Estimation (MoveNet)
 // ---------------------------------------------------------------------------
 
+/// DEPRECATED: will be served by xeno-rt inference API instead.
 /// Detect body poses in an RGBA image using AI (MoveNet).
 ///
 /// Model is lazily loaded on first call and cached.
@@ -1006,6 +1033,7 @@ pub async fn detect_poses(
 // Face Analysis (Multi-task CNN)
 // ---------------------------------------------------------------------------
 
+/// DEPRECATED: will be served by xeno-rt inference API instead.
 /// Analyze faces in an RGBA image (age, gender, emotion) using AI.
 ///
 /// Model is lazily loaded on first call and cached.
@@ -1069,6 +1097,7 @@ pub async fn analyze_faces(
 // Model Management
 // ---------------------------------------------------------------------------
 
+/// DEPRECATED: will be served by xeno-rt inference API instead.
 /// Get the path to the model directory (~/.xeno-lib/models/).
 /// Creates the directory if it doesn't exist.
 #[napi]
@@ -1085,6 +1114,7 @@ pub fn get_model_dir() -> Result<String> {
     Ok(model_dir.to_string_lossy().to_string())
 }
 
+/// DEPRECATED: will be served by xeno-rt inference API instead.
 /// Check if a specific model file exists in the model directory.
 ///
 /// # Arguments
@@ -1101,6 +1131,7 @@ pub fn is_model_available(model_name: String) -> Result<bool> {
     Ok(model_path.exists())
 }
 
+/// DEPRECATED: will be served by xeno-rt inference API instead.
 /// List all model files in the model directory.
 ///
 /// # Returns

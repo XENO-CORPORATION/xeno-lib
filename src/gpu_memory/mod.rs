@@ -1,3 +1,7 @@
+// TODO: MIGRATE TO XENO-RT — this module manages GPU memory for AI model inference and belongs
+// in the inference runtime. The GpuMemoryPool, model swapping, LRU eviction, and CUDA memory
+// detection are all inference-specific and should move to xeno-rt.
+//!
 //! GPU memory management for AI model inference.
 //!
 //! Provides intelligent model swapping, shared GPU memory pools, and CUDA stream

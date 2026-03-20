@@ -1,3 +1,7 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// All ONNX Runtime inference (model loading, colorization inference, pre/postprocessing) should move
+// to xeno-rt. No pure processing code remains in this module.
+//!
 //! AI-powered image and video colorization using DDColor.
 //!
 //! This module provides automatic colorization of black & white images

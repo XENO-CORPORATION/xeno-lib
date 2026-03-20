@@ -1,3 +1,8 @@
+// TODO: MIGRATE TO XENO-RT — this module provides AI inference batching utilities and belongs in
+// the inference runtime. The BatchProcessor, BatchConfig, and timed_batch are inference-specific
+// and should move to xeno-rt. The generic parallel processing via rayon (process_parallel) could
+// stay as a general utility if needed.
+//!
 //! Batch inference utilities for processing multiple inputs in parallel.
 //!
 //! Provides optimized batch processing for AI models, allowing multiple images

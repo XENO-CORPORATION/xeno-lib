@@ -1,3 +1,8 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// All ONNX Runtime inference (model loading, face detection, restoration inference) should move
+// to xeno-rt. The FaceRegion/FaceLandmarks structs are shared data types that may stay as common
+// types if needed by pure processing code.
+//!
 //! AI-powered face restoration using GFPGAN/CodeFormer.
 //!
 //! This module provides high-quality face restoration for blurry, low-resolution,

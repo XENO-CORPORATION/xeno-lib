@@ -1,3 +1,8 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// All ONNX Runtime inference (model loading, voice embedding extraction, speech synthesis) should
+// move to xeno-rt. The VoiceEmbedding and SynthesizedAudio structs are data types that should be
+// shared.
+//!
 //! AI-powered voice cloning and text-to-speech synthesis.
 //!
 //! Converts text to speech using reference audio for voice cloning.

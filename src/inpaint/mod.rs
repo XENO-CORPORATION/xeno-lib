@@ -1,3 +1,8 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// All ONNX Runtime inference (model loading, inpainting inference, pre/postprocessing) should move
+// to xeno-rt. The create_mask() function and MaskRegion enum are pure geometry utilities that STAY
+// in xeno-lib.
+//!
 //! AI-powered image inpainting using LaMa.
 //!
 //! This module provides object removal and content-aware fill

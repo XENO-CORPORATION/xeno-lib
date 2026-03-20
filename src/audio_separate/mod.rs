@@ -1,3 +1,7 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// All ONNX Runtime inference (model loading, Demucs inference, overlap-add processing) should move
+// to xeno-rt. The StereoAudio struct and audio interleaving utilities could stay as shared types.
+//!
 //! AI-powered audio source separation using Demucs.
 //!
 //! This module provides music source separation for isolating

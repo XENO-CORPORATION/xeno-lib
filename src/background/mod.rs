@@ -1,3 +1,8 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// All ONNX Runtime inference (model loading, preprocessing, inference, postprocessing) should move
+// to xeno-rt. The postprocess::apply_mask function contains pure image processing that could stay
+// in xeno-lib as a general-purpose mask application utility.
+//!
 //! AI-powered background removal using ONNX Runtime.
 //!
 //! This module provides high-quality background removal powered by a BiRefNet-style

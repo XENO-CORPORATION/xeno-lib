@@ -1,3 +1,9 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// All ONNX Runtime inference (model loading, Whisper inference, audio preprocessing) should move
+// to xeno-rt. The to_srt() and to_vtt() formatting functions are pure text processing and STAY
+// in xeno-lib (or move to a shared subtitle utility). The Transcript/TranscriptSegment structs
+// should be shared types.
+//!
 //! AI-powered speech-to-text transcription using Whisper.
 //!
 //! This module provides automatic speech recognition (ASR) for

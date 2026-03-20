@@ -1,3 +1,8 @@
+// TODO: MIGRATE TO XENO-RT — this module belongs in the inference runtime, not the processing library.
+// All ONNX Runtime inference (model loading, RIFE inference, pre/postprocessing) should move to
+// xeno-rt. The is_scene_change() function uses pixel comparison (not AI) and could STAY in
+// xeno-lib as a pure processing utility.
+//!
 //! AI-powered frame interpolation using RIFE.
 //!
 //! This module provides smooth frame interpolation for video frame rate
