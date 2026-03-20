@@ -1,8 +1,8 @@
 # xeno-lib
 
-**The native multimedia engine for the XENO platform.** One pure Rust library replacing FFmpeg, ImageMagick, SOX, and every other native media dependency. Video, image, audio, screen capture, AI inference, and format I/O — all in one place.
+**The native multimedia processing library for the XENO platform.** One pure Rust library replacing FFmpeg, ImageMagick, SOX, and every other native media dependency. Video, image, audio, screen capture, and format I/O — at the lowest level possible.
 
-> xeno-lib is not a wrapper around existing tools. It is a ground-up Rust multimedia engine with pure Rust codecs, SIMD-accelerated processing, AI inference via ONNX Runtime + CUDA, and professional-grade utilities. Every XENO app depends on this library.
+> xeno-lib is not a wrapper. It is a ground-up Rust processing engine with pure Rust codecs, SIMD-accelerated transforms, and professional-grade utilities. Every XENO app depends on this library for all media processing. AI inference lives in xeno-rt — not here.
 
 ---
 
@@ -11,15 +11,16 @@
 **One library to replace them all.** No FFmpeg. No ImageMagick. No SOX. No GPL licensing headaches. No opaque C dependency chains. xeno-lib delivers:
 
 - **Video** — Decode/encode H.264, H.265, VP9, AV1, ProRes. Container mux/demux for MP4, MKV, WebM. Hardware acceleration via NVENC/NVDEC.
-- **Image** — Read/write PNG, JPEG, WebP, AVIF, TIFF, EXR, PSD, BMP, GIF, SVG. Resize, crop, composite, filter, color management.
-- **Audio** — Decode MP3, AAC, FLAC, Vorbis, ALAC, WAV, OGG, Opus. Effects (reverb, EQ, pitch shift, delay, distortion, chorus, flanger). Analysis and visualization.
+- **Image** — Read/write PNG, JPEG, WebP, AVIF, TIFF, EXR, PSD, BMP, GIF, SVG. Resize, crop, flip, rotate, composite, filter, color management, ICC profiles.
+- **Audio** — Decode MP3, AAC, FLAC, Vorbis, ALAC, WAV, OGG, Opus. Effects (reverb, EQ, pitch shift, delay, distortion, chorus, flanger). Mixing, analysis, visualization.
 - **Screen Capture** — Native capture via DXGI (Windows), CGDisplay (macOS), X11/Wayland (Linux). Screenshot and video recording.
-- **AI Inference** — 17+ models via ONNX Runtime + CUDA: upscale, denoise, background removal, depth estimation, face detection/restoration, style transfer, OCR, pose estimation, segmentation, frame interpolation, speech-to-text, stem separation.
 - **Format I/O** — Every format the creative apps need, with proper metadata preservation.
-- **Performance** — SIMD (AVX2/NEON) for all hot paths. GPU acceleration. Memory safety guaranteed by Rust.
+- **Performance** — SIMD (AVX2/NEON) for all hot paths. GPU-accelerated encode/decode. Memory safety guaranteed by Rust.
 - **Bindings** — N-API for seamless Electron/Node.js integration across all XENO apps. WASM target planned for browser.
 
-This is not a thin wrapper. This is a professional multimedia engine built for AI-native creative applications.
+**What does NOT belong here:** AI model inference. All AI/ML (upscale, denoise, background removal, depth estimation, transcription, etc.) is in **xeno-rt** — the unified inference runtime for LLMs and task-specific models.
+
+This is not a thin wrapper. This is a professional multimedia processing engine built at the lowest level possible.
 
 ---
 

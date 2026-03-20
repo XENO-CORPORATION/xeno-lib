@@ -2,27 +2,30 @@
 
 ## You Are Working On
 
-**xeno-lib** — the native multimedia engine powering the entire XENO platform. Pure Rust library replacing FFmpeg, ImageMagick, SOX, and every other native dependency with one unified, high-performance library exposed via N-API to all XENO apps.
+**xeno-lib** — the native multimedia processing library powering the entire XENO platform. Pure Rust, lowest level possible. Replaces FFmpeg, ImageMagick, SOX, and every other native media dependency with one unified library exposed via N-API.
 
-**What it does:** Video decode/encode (H.264, H.265, VP9, AV1, ProRes), image processing (resize, crop, filters, compositing, format conversion), audio processing (decode, encode, effects, analysis), screen capture (DXGI/CGDisplay/X11), AI inference (ONNX Runtime, SIMD, CUDA — upscale, denoise, background removal, depth estimation, segmentation, transcription, style transfer, and more), and format I/O (PNG, JPEG, WebP, AVIF, TIFF, EXR, PSD, MP4, MKV, WAV, FLAC, MP3, OGG).
+**What it does:** Video decode/encode (H.264, H.265, VP9, AV1, ProRes), image processing (resize, crop, flip, rotate, filters, compositing, color management, format conversion), audio processing (decode, encode, effects, mixing, analysis, visualization), screen capture (DXGI/CGDisplay/X11), and format I/O (PNG, JPEG, WebP, AVIF, TIFF, EXR, PSD, MP4, MKV, WAV, FLAC, MP3, OGG, and more).
 
-**Mandate: NO FFmpeg dependency. NO ImageMagick. NO SOX. Build our own pure Rust codec, processing, and capture stack. One library to rule them all.**
+**What it does NOT do:** AI model inference. All AI/ML inference (upscale, denoise, background removal, depth estimation, transcription, etc.) belongs in **xeno-rt**, which is the unified inference runtime for both LLMs and task-specific ONNX models.
+
+**Mandate: NO FFmpeg. NO ImageMagick. NO SOX. NO AI inference (that's xeno-rt). Pure processing, codecs, transforms, effects, capture, and format I/O at the lowest level possible.**
 
 ## Critical Context
 
 Part of a 16+ repo ecosystem. Read `../XENO CORPORATION - Full Ecosystem Report.md`.
 
 ```
-YOUR REPO: xeno-lib (Layer 2 — Native Multimedia Engine)
-    ↑ consumed by: xeno-pixel (image processing, AI models, format I/O, color management)
-    ↑ consumed by: xeno-motion (video decode/encode, audio processing, AI models, frame cache)
-    ↑ consumed by: xeno-sound (audio decode/encode, effects processing, AI models, analysis)
-    ↑ consumed by: xeno-hub (bg removal tool, format converter, screen capture)
-    ↑ consumed by: xeno-3d (texture I/O, mesh processing, AI models)
-    ↑ consumed by: xeno-architect (image export, AI models)
-    ↑ consumed by: xeno-agent-sdk (screen capture tool, AI inference via agent)
+YOUR REPO: xeno-lib (Layer 2 — Native Processing Library)
+    ↑ consumed by: xeno-pixel (image processing, format I/O, color management)
+    ↑ consumed by: xeno-motion (video decode/encode, audio processing, frame cache)
+    ↑ consumed by: xeno-sound (audio decode/encode, effects processing, analysis)
+    ↑ consumed by: xeno-hub (format converter, screen capture)
+    ↑ consumed by: xeno-3d (texture I/O, mesh processing)
+    ↑ consumed by: xeno-architect (image export)
+    ↑ consumed by: xeno-agent-sdk (screen capture tool)
     ↑ consumed by: xeno-agent-cli (screen capture for /ss command)
     ↑ consumed by: xeno-workflow (image/audio/video processing nodes)
+    → AI inference is in xeno-rt, NOT here
     ↑ changes here affect 9+ downstream consumers — NEVER change outputs without coordination
 ```
 
