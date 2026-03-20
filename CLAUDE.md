@@ -2,22 +2,28 @@
 
 ## You Are Working On
 
-**xeno-lib** — the COMPUTE layer of the entire XENO platform. Pure Rust multimedia processing library with 17 AI models. Performance is everything. This library exists because JavaScript is too slow for professional media processing, and FFmpeg is a GPL-licensed C dependency chain we refuse to adopt.
+**xeno-lib** — the native multimedia engine powering the entire XENO platform. Pure Rust library replacing FFmpeg, ImageMagick, SOX, and every other native dependency with one unified, high-performance library exposed via N-API to all XENO apps.
 
-**Mandate: NO FFmpeg dependency. Build our own pure Rust codec and processing stack.**
+**What it does:** Video decode/encode (H.264, H.265, VP9, AV1, ProRes), image processing (resize, crop, filters, compositing, format conversion), audio processing (decode, encode, effects, analysis), screen capture (DXGI/CGDisplay/X11), AI inference (ONNX Runtime, SIMD, CUDA — upscale, denoise, background removal, depth estimation, segmentation, transcription, style transfer, and more), and format I/O (PNG, JPEG, WebP, AVIF, TIFF, EXR, PSD, MP4, MKV, WAV, FLAC, MP3, OGG).
+
+**Mandate: NO FFmpeg dependency. NO ImageMagick. NO SOX. Build our own pure Rust codec, processing, and capture stack. One library to rule them all.**
 
 ## Critical Context
 
 Part of a 16+ repo ecosystem. Read `../XENO CORPORATION - Full Ecosystem Report.md`.
 
 ```
-YOUR REPO: xeno-lib (Layer 2 — Compute & AI)
-    ↑ consumed by: xeno-pixel (upscale, bg removal, inpaint, denoise, style transfer, face detect/restore, depth, OCR, pose, segmentation)
-    ↑ consumed by: xeno-motion (frame interpolation, transcription, audio separation, object detection, scene detection)
-    ↑ consumed by: xeno-sound (noise reduction, stem separation, transcription, pitch detection, audio effects, visualization)
-    ↑ consumed by: xeno-hub (bg removal tool, format converter)
-    ↑ invoked by: xeno-agent-sdk (agents call models programmatically via agent.rs)
-    ↑ changes here affect 5+ downstream consumers — NEVER change outputs without coordination
+YOUR REPO: xeno-lib (Layer 2 — Native Multimedia Engine)
+    ↑ consumed by: xeno-pixel (image processing, AI models, format I/O, color management)
+    ↑ consumed by: xeno-motion (video decode/encode, audio processing, AI models, frame cache)
+    ↑ consumed by: xeno-sound (audio decode/encode, effects processing, AI models, analysis)
+    ↑ consumed by: xeno-hub (bg removal tool, format converter, screen capture)
+    ↑ consumed by: xeno-3d (texture I/O, mesh processing, AI models)
+    ↑ consumed by: xeno-architect (image export, AI models)
+    ↑ consumed by: xeno-agent-sdk (screen capture tool, AI inference via agent)
+    ↑ consumed by: xeno-agent-cli (screen capture for /ss command)
+    ↑ consumed by: xeno-workflow (image/audio/video processing nodes)
+    ↑ changes here affect 9+ downstream consumers — NEVER change outputs without coordination
 ```
 
 ## ABSOLUTE RULES

@@ -1,24 +1,25 @@
 # xeno-lib
 
-**Pure Rust multimedia processing library with 17 AI models.** The compute backbone of the entire XENO platform — replacing all dependency on FFmpeg and proprietary codecs with custom, pure Rust implementations.
+**The native multimedia engine for the XENO platform.** One pure Rust library replacing FFmpeg, ImageMagick, SOX, and every other native media dependency. Video, image, audio, screen capture, AI inference, and format I/O — all in one place.
 
-> xeno-lib is not a wrapper. It is a ground-up Rust media processing engine with SIMD-accelerated transforms, state-of-the-art neural networks via ONNX Runtime + CUDA, pure Rust video/audio codecs, and professional utilities. Every XENO app depends on this library.
+> xeno-lib is not a wrapper around existing tools. It is a ground-up Rust multimedia engine with pure Rust codecs, SIMD-accelerated processing, AI inference via ONNX Runtime + CUDA, and professional-grade utilities. Every XENO app depends on this library.
 
 ---
 
 ## Vision
 
-**Replace FFmpeg entirely.** No C dependency chains, no GPL licensing headaches, no opaque binary blobs. xeno-lib delivers:
+**One library to replace them all.** No FFmpeg. No ImageMagick. No SOX. No GPL licensing headaches. No opaque C dependency chains. xeno-lib delivers:
 
-- Pure Rust codecs for every format we ship (AV1 via rav1e, H.264 via OpenH264, audio via symphonia)
-- 17 AI models that FFmpeg cannot match (upscaling, background removal, transcription, pose estimation, etc.)
-- SIMD-accelerated image transforms (AVX2 on x86_64, NEON on ARM)
-- GPU acceleration via ONNX Runtime + CUDA for all AI inference
-- Memory safety guaranteed by the Rust compiler — no CVEs from buffer overflows
-- N-API bindings (planned) for seamless Electron integration across xeno-hub, xeno-pixel, xeno-motion, xeno-sound
-- WASM compilation target (planned) for browser-based processing
+- **Video** — Decode/encode H.264, H.265, VP9, AV1, ProRes. Container mux/demux for MP4, MKV, WebM. Hardware acceleration via NVENC/NVDEC.
+- **Image** — Read/write PNG, JPEG, WebP, AVIF, TIFF, EXR, PSD, BMP, GIF, SVG. Resize, crop, composite, filter, color management.
+- **Audio** — Decode MP3, AAC, FLAC, Vorbis, ALAC, WAV, OGG, Opus. Effects (reverb, EQ, pitch shift, delay, distortion, chorus, flanger). Analysis and visualization.
+- **Screen Capture** — Native capture via DXGI (Windows), CGDisplay (macOS), X11/Wayland (Linux). Screenshot and video recording.
+- **AI Inference** — 17+ models via ONNX Runtime + CUDA: upscale, denoise, background removal, depth estimation, face detection/restoration, style transfer, OCR, pose estimation, segmentation, frame interpolation, speech-to-text, stem separation.
+- **Format I/O** — Every format the creative apps need, with proper metadata preservation.
+- **Performance** — SIMD (AVX2/NEON) for all hot paths. GPU acceleration. Memory safety guaranteed by Rust.
+- **Bindings** — N-API for seamless Electron/Node.js integration across all XENO apps. WASM target planned for browser.
 
-This is not incremental improvement over FFmpeg. This is a replacement built for AI-native creative applications.
+This is not a thin wrapper. This is a professional multimedia engine built for AI-native creative applications.
 
 ---
 
@@ -42,7 +43,7 @@ This is not incremental improvement over FFmpeg. This is a replacement built for
     │                    xeno-lib                       │
     │                                                   │
     │  ┌─────────────┐  ┌──────────┐  ┌─────────────┐ │
-    │  │ 17 AI Models│  │ Codecs   │  │ Transforms  │ │
+    │  │ AI Inference│  │ Codecs   │  │ Transforms  │ │
     │  │ ONNX + CUDA │  │ Pure Rust│  │ SIMD AVX2   │ │
     │  └─────────────┘  └──────────┘  └─────────────┘ │
     │  ┌─────────────┐  ┌──────────┐  ┌─────────────┐ │
@@ -51,7 +52,7 @@ This is not incremental improvement over FFmpeg. This is a replacement built for
     │  └─────────────┘  └──────────┘  └─────────────┘ │
     └──────────────────────────────────────────────────┘
                                │
-                    LAYER 2 — COMPUTE & AI
+                    LAYER 2 — NATIVE MULTIMEDIA ENGINE
                                │
               ┌────────────────┴────────────────┐
               │ xeno-rt (LLM inference runtime) │
@@ -71,7 +72,7 @@ This is not incremental improvement over FFmpeg. This is a replacement built for
 
 ---
 
-## AI Models (17)
+## AI Inference Models
 
 All models run via ONNX Runtime with optional CUDA acceleration. Models are stored in `~/.xeno-lib/models/` as ONNX files.
 
