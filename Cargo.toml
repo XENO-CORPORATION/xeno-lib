@@ -13,12 +13,12 @@ categories = ["graphics", "multimedia::images", "multimedia::video", "multimedia
 [dependencies]
 image = { version = "0.25", default-features = true }
 nom-exif = "2.5"
-rayon = "1.10"
+rayon = "1.12"
 thiserror = "1.0"
 fast_image_resize = { version = "5.3", optional = true }
 
 # Background removal dependencies
-ort = { version = "=2.0.0-rc.10", optional = true }
+ort = { version = "=2.0.0-rc.12", optional = true }
 ndarray = { version = "0.16", optional = true }
 
 # Video encoding (Phase 2)
